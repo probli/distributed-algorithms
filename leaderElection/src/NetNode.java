@@ -56,14 +56,13 @@ public class NetNode {
         HashMap<String, String> nodes = new HashMap();
         try (BufferedReader br = new BufferedReader(new FileReader(configs))) {
             String line;
-            Boolean addingNodes = false;
             int lineNum = 0;
             while ((line = br.readLine()) != null) {
                 lineNum++;
                 line = line.trim().toLowerCase();
                 if (isValidLine(line)) {
                     String realLine = line.split("#")[0];
-                    String[] t = line.split("\\s+");
+                    String[] t = realLine.split("\\s+");
                     if (t.length != 4) {
                         throw new Exception(String.format("Invalid configs at line %d", lineNum));
                     }
