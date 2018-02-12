@@ -24,9 +24,9 @@ public class Node {
 
     private leaderElectStatus pelegStatus;
     private int largestUID;
-    private int nextLargestUID;
+    private int receivedLargestUID;
     private int distanceOfLargestUID;
-    private int nextDistanceOfLargestUID;
+    private int receivedDistanceOfLargestUID;
     private int unchangedRound;
     private int processedMsgNo;
 
@@ -120,23 +120,23 @@ public class Node {
 
     public synchronized void updateKnowledge(int uid, int d) {
         if (uid == getLargestUID()) {
-            if (d > getNextDistanceOfLargestUID()) {
-                setNextDistanceOfLargestUID(d);
+            if (d > getReceivedDistanceOfLargestUID()) {
+                setReceivedDistanceOfLargestUID(d);
             }
         } else if (uid > getLargestUID()) {
-            if (uid >= getNextLargestUID()) {
-                setnextLargestUID(uid);
-                setNextDistanceOfLargestUID(d + 1);
+            if (uid >= getReceivedLargestUID()) {
+                setReceivedLargestUID(uid);
+                setReceivedDistanceOfLargestUID(d + 1);
             }
         }
     }
 
     public void checkKnowledge() {
         Logger.Debug("Round %s finished", getRound());
-        if (getNextDistanceOfLargestUID() != getDistanceOfLargestUID() || getNextLargestUID() != getLargestUID()) {
+        if (getReceivedDistanceOfLargestUID() != getDistanceOfLargestUID() || getReceivedLargestUID() != getLargestUID()) {
             setUnchangedRound(0);
-            setLargestUID(getNextLargestUID());
-            setDistanceOfLargestUID(getNextDistanceOfLargestUID());
+            setLargestUID(getReceivedLargestUID());
+            setDistanceOfLargestUID(getReceivedDistanceOfLargestUID());
         } else if (getUnchangedRound() == 0) {
             setUnchangedRound(1);
         } else if (getPelegStatus() == leaderElectStatus.UNKNOWN){
@@ -186,9 +186,9 @@ public class Node {
         this.nodeState = state.ELECTLEADER;
         this.round = 0;
         this.largestUID = id;
-        this.nextLargestUID = id;
+        this.receivedLargestUID = id;
         this.distanceOfLargestUID = 0;
-        this.nextDistanceOfLargestUID = 0;
+        this.receivedDistanceOfLargestUID = 0;
         this.pelegStatus = leaderElectStatus.UNKNOWN;
         this.unchangedRound = 0;
         this.processedMsgNo = 0;
@@ -302,12 +302,12 @@ public class Node {
         this.largestUID = uid;
     }
 
-    public synchronized int getNextLargestUID() {
-        return this.nextLargestUID;
+    public synchronized int getReceivedLargestUID() {
+        return this.receivedLargestUID;
     }
 
-    public synchronized void setnextLargestUID(int uid) {
-        this.nextLargestUID = uid;
+    public synchronized void setReceivedLargestUID(int uid) {
+        this.receivedLargestUID = uid;
     }
 
     public synchronized int getDistanceOfLargestUID() {
@@ -318,12 +318,12 @@ public class Node {
         this.distanceOfLargestUID = d;
     }
 
-    public synchronized int getNextDistanceOfLargestUID() {
-        return this.nextDistanceOfLargestUID;
+    public synchronized int getReceivedDistanceOfLargestUID() {
+        return this.receivedDistanceOfLargestUID;
     }
 
-    public synchronized void setNextDistanceOfLargestUID(int d) {
-        this.nextDistanceOfLargestUID = d;
+    public synchronized void setReceivedDistanceOfLargestUID(int d) {
+        this.receivedDistanceOfLargestUID = d;
     }
 
     public synchronized int getUnchangedRound() {
