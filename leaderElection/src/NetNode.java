@@ -23,25 +23,11 @@ public class NetNode {
             Logger.Info("Connecting Node: %s", tmp);
 
             Logger.Info("Send Msg or Press [d/D] to disconnect by NodeId.");
-            while (true) {
-                BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
-
-                String msg = reader.readLine();
-                if (msg == null || msg.isEmpty()) {
-                    continue;
-                }
-
-                if (msg.equalsIgnoreCase("D")) {
-                    Logger.Info("Input nodeId:");
-                    String ss = reader.readLine();
-                    if (ss == null || ss.isEmpty()) {
-                        continue;
-                    }
-                    node.disconnect(Integer.parseInt(ss));
-                } else {
-                    node.sendTestMsg(msg);
-                }
-            }
+            testMode(node);
+            electLeader(node);
+            Logger.Debug("Leader election finished. The result is: %s", node.getPelegStatus());
+            node.setRound(0);
+            node.emptyMsgBuffer();
         } catch (Exception e) {
             StringWriter sw = new StringWriter();
             PrintWriter pw = new PrintWriter(sw);
@@ -49,7 +35,6 @@ public class NetNode {
             Logger.Error(sw.toString());
         }
     }
-
 
     public static Node initNode(String configs, String nodeId) throws Exception {
 
@@ -87,8 +72,50 @@ public class NetNode {
         return node;
     }
 
-
     private static boolean isValidLine(String line) {
         return line.length() > 0 && Character.isDigit(line.charAt(0));
+    }
+
+    public static void testMode(Node node) {
+        (new Thread(){
+            @Override
+            public void run() {
+                try {
+                    while (true) {
+                        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+                        String msg = reader.readLine();
+                        if (msg == null || msg.isEmpty()) {
+                            continue;
+                        }
+                        if (msg.equalsIgnoreCase("D")) {
+                            Logger.Info("Input nodeId:");
+                            String ss = reader.readLine();
+                            if (ss == null || ss.isEmpty()) continue;
+                            node.disconnect(Integer.parseInt(ss));
+                        } else {
+                            node.sendTestMsg(msg);
+                        }
+                    }
+                } catch(Exception e) {
+                    StringWriter sw = new StringWriter();
+                    PrintWriter pw = new PrintWriter(sw);
+                    e.printStackTrace(pw);
+                    Logger.Error(sw.toString());
+                }
+            }
+        }).start();
+    }
+
+    public static void electLeader(Node node) {
+        node.leaderElectInit();
+        int roundMsgNumber = node.getNeighbors().size();
+        while (node.getNodeState() == state.ELECTLEADER) {
+            if (node.getRound() == 0 || node.getProcessedMsgNo() == roundMsgNumber * node.getRound()) {
+                Logger.Debug("Round: %s, UID: %s, Dis: %s", node.getRound() + 1, node.getLargestUID(), node.getDistanceOfLargestUID());
+                String msgContent = node.getLargestUID() + "," + node.getDistanceOfLargestUID();
+                node.updateRound();
+                node.sendElectMsg(msgContent);
+            }
+        }
     }
 }
