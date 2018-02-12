@@ -33,4 +33,13 @@ public class MsgFactory {
         msg.setRound(0);
         return msg;
     }
+
+    public static Msg electMsg(Node node) {
+        Msg msg = new Msg();
+        msg.setAction(MsgAction.ELECTLEADER);
+        msg.setSrcId(node.getId());
+        msg.setFromId(node.getId());
+        msg.setRound(node.getRound());
+        return msg;
+    }
 }
