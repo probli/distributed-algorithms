@@ -34,7 +34,6 @@ public class Node {
     private int processedMsgNo;
     public boolean marked;
     private int replyMsgNo;
-    private boolean receiveMsgStatus;
     private static ConcurrentLinkedQueue<Msg> bufferedMsg = new ConcurrentLinkedQueue<>();
     private static ConcurrentLinkedQueue<Msg> treeBufferedMsg = new ConcurrentLinkedQueue<>();
 
@@ -266,7 +265,6 @@ public class Node {
         this.processedMsgNo = 0;
         this.childrenMsgNo = 0;
         this.replyMsgNo = 0;
-        receiveMsgStatus = false;
     }
 
     public void sendSearchMsg(String str) {
