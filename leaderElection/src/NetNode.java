@@ -138,32 +138,19 @@ public class NetNode {
                     node.sendSearchMsg("Null");
                 }
             }
-//            if (node.marked && node.getChildren().size() == 0 && node.getReceiveMsgStatus()) {
-//                break;
-//            }
-
-//            if (node.getReceiveMsgStatus() && ( node.marked && ((node.marked && node.getChildren().size() == 0)|| node.getChildrenMsgNo() == node.getChildren().size()))) {
-//                if(node.getParent() != node.getId()){
-//                    int maxDegree = Math.max(node.getDegree(), node.getMaxDegree());
-//                    node.replySearchMsg("" + maxDegree, node.getParent());
-//                }
-//                node.setNodeState(state.DONE);
-//            }
         }
 
-        while ((!node.getReceiveMsgStatus()) && (node.getChildrenMsgNo() == node.getChildren().size())) {
-            node.checkTreeBuffer();
-        }
-
-        Logger.Debug( "Searching message is complete");
+        Logger.Debug( "Searching message is completed");
         while(node.getNodeState() != state.DONE) {
-            if (node.getReceiveMsgStatus() &&  (node.getChildrenMsgNo() == node.getChildren().size())) {
-                if(node.getParent() != node.getId()){
-                    int maxDegree = Math.max(node.getDegree(), node.getMaxDegree());
-                    node.replySearchMsg("" + maxDegree, node.getParent());
-                }
+            if (node.getReplyMsgNo() == node.getNeighbors().size() && node.getChildren().size() == 0) {
                 node.setNodeState(state.DONE);
             }
+        }
+
+        Logger.Debug( "ConvergeCast is completed");
+        if(node.getParent() != node.getId()){
+            int maxDegree = Math.max(node.getDegree(), node.getMaxDegree());
+            node.replySearchMsg("" + maxDegree, node.getParent());
         }
         node.emptyTreeMsgBuffer();
         Logger.Debug("Node id is: %s", node.getId());

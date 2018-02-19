@@ -127,30 +127,28 @@ public class Node {
                             } else{
                                 replySearchMsg("Reject", fromId);
                             }
-                        } else {
+                        } else if (content.equals("Null")){
                             replySearchMsg("None", fromId);
                             updateProcessedMsgNo();
                         }
-                    }
-                    else if(content.equals("Search") && marked){
+                    } else if (msg.getContent().equals("Search") && marked) {
                         replySearchMsg("Reject", fromId);
                     }
 
                 } else if (content.equals("Accept")) {
                     children.put(fromId, neighbors.get(fromId));
-                    replyMsgNo++;
+                    updateReplyMsgNo();
+
                 } else if (content.equals("Reject")) {
-                    replyMsgNo++;
+                    updateReplyMsgNo();
                 }
 
                 if (isInteger(content)) {
                     maxDegree = Math.max(maxDegree, Integer.parseInt(content));
                     updateChildrenMsgNo();
-                }
-
-                if((getPelegStatus() == leaderElectStatus.ISLEADER && replyMsgNo == neighbors.size())
-                        || getPelegStatus() == leaderElectStatus.ISNOTLEADER && replyMsgNo == neighbors.size() -1){
-                        receiveMsgStatus = true;
+                    if(getChildrenMsgNo() == children.size()) {
+                        setNodeState(state.DONE);
+                    }
                 }
             }
         } catch (Exception e) {
@@ -312,7 +310,7 @@ public class Node {
                 while (!treeBufferedMsg.isEmpty()) {
                     synchronized(treeBufferedMsg){
                         for (Msg m : treeBufferedMsg) {
-                            if (m.getRound() == getRound()){
+                            if (m.getRound() <= getRound()){
                                 processMsg(m);
                                 treeBufferedMsg.remove(m);
                                 break;
@@ -384,16 +382,12 @@ public class Node {
 
     public void setDegree(int d) { degree = d; }
 
-//    public void setMaxDegree(int m) {
-//        maxDegree = m;
-//    }
-
     public int getReplyMsgNo() {
-        return replyMsgNo;
+        return this.replyMsgNo;
     }
 
-    public boolean getReceiveMsgStatus() {
-        return receiveMsgStatus;
+    public synchronized void updateReplyMsgNo() {
+        this.replyMsgNo = this.replyMsgNo + 1;
     }
 
     public void setRound(int r) {
