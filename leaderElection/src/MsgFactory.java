@@ -42,4 +42,13 @@ public class MsgFactory {
         msg.setRound(node.getRound());
         return msg;
     }
+
+    public static Msg searchMsg(Node node) {
+        Msg msg = new Msg();
+        msg.setAction(MsgAction.SENDSEARCH);
+        msg.setSrcId(node.getId());
+        msg.setFromId(node.getId());
+        msg.setRound(node.getRound());
+        return msg;
+    }
 }

@@ -6,7 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 
 public class MsgService {
-    HashMap<Integer, MsgChannel> channels = new HashMap<Integer, MsgChannel>();
+    HashMap<Integer, MsgChannel> channels = new HashMap<>();
 
     Node nodeInfo;
 

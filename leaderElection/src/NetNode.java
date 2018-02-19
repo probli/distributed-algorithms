@@ -28,6 +28,11 @@ public class NetNode {
             Logger.Debug("Leader election finished. The result is: %s", node.getPelegStatus());
             node.setRound(0);
             node.emptyMsgBuffer();
+
+            Logger.Debug("Begin to create BFS tree.");
+            buildTree(node);
+            node.emptyTreeMsgBuffer();
+
         } catch (Exception e) {
             StringWriter sw = new StringWriter();
             PrintWriter pw = new PrintWriter(sw);
@@ -38,7 +43,7 @@ public class NetNode {
 
     public static Node initNode(String configs, String nodeId) throws Exception {
 
-        HashMap<String, String> nodes = new HashMap();
+        HashMap<String, String> nodes = new HashMap<>();
         try (BufferedReader br = new BufferedReader(new FileReader(configs))) {
             String line;
             int lineNum = 0;
@@ -77,33 +82,31 @@ public class NetNode {
     }
 
     public static void testMode(Node node) {
-        (new Thread(){
-            @Override
-            public void run() {
-                try {
-                    while (true) {
-                        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
-                        String msg = reader.readLine();
-                        if (msg == null || msg.isEmpty()) {
-                            continue;
-                        }
-                        if (msg.equalsIgnoreCase("D")) {
-                            Logger.Info("Input nodeId:");
-                            String ss = reader.readLine();
-                            if (ss == null || ss.isEmpty()) continue;
-                            node.disconnect(Integer.parseInt(ss));
-                        } else {
-                            node.sendTestMsg(msg);
-                        }
+        Runnable task = ()->{
+            try {
+                while (true) {
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+                    String msg = reader.readLine();
+                    if (msg == null || msg.isEmpty()) {
+                        continue;
                     }
-                } catch(Exception e) {
-                    StringWriter sw = new StringWriter();
-                    PrintWriter pw = new PrintWriter(sw);
-                    e.printStackTrace(pw);
-                    Logger.Error(sw.toString());
+                    if (msg.equalsIgnoreCase("D")) {
+                        Logger.Info("Input nodeId:");
+                        String ss = reader.readLine();
+                        if (ss == null || ss.isEmpty()) continue;
+                        node.disconnect(Integer.parseInt(ss));
+                    } else {
+                        node.sendTestMsg(msg);
+                    }
                 }
+            } catch(Exception e) {
+                StringWriter sw = new StringWriter();
+                PrintWriter pw = new PrintWriter(sw);
+                e.printStackTrace(pw);
+                Logger.Error(sw.toString());
             }
-        }).start();
+        };
+        new Thread(task).start();
     }
 
     public static void electLeader(Node node) {
@@ -116,6 +119,71 @@ public class NetNode {
                 node.updateRound();
                 node.sendElectMsg(msgContent);
             }
+        }
+    }
+
+    public static void buildTree(Node node) {
+        node.buildTreeInit();
+        if(node.getPelegStatus() == leaderElectStatus.ISLEADER) {
+            node.marked = true;
+            node.setParent(node.getId());
+        }
+        while (node.getNodeState() == state.SEARCH) {
+            if (node.getRound() == 0 || node.getProcessedMsgNo() == node.getNeighbors().size() * node.getRound()) {
+                node.updateRound();
+                if(node.marked){
+                    node.sendSearchMsg("Search");
+                    node.setNodeState(state.HOLD);
+                }else{
+                    node.sendSearchMsg("Null");
+                }
+            }
+//            if (node.marked && node.getChildren().size() == 0 && node.getReceiveMsgStatus()) {
+//                break;
+//            }
+
+//            if (node.getReceiveMsgStatus() && ( node.marked && ((node.marked && node.getChildren().size() == 0)|| node.getChildrenMsgNo() == node.getChildren().size()))) {
+//                if(node.getParent() != node.getId()){
+//                    int maxDegree = Math.max(node.getDegree(), node.getMaxDegree());
+//                    node.replySearchMsg("" + maxDegree, node.getParent());
+//                }
+//                node.setNodeState(state.DONE);
+//            }
+        }
+
+        while ((!node.getReceiveMsgStatus()) && (node.getChildrenMsgNo() == node.getChildren().size())) {
+            node.checkTreeBuffer();
+        }
+
+        Logger.Debug( "Searching message is complete");
+        while(node.getNodeState() != state.DONE) {
+            if (node.getReceiveMsgStatus() &&  (node.getChildrenMsgNo() == node.getChildren().size())) {
+                if(node.getParent() != node.getId()){
+                    int maxDegree = Math.max(node.getDegree(), node.getMaxDegree());
+                    node.replySearchMsg("" + maxDegree, node.getParent());
+                }
+                node.setNodeState(state.DONE);
+            }
+        }
+        node.emptyTreeMsgBuffer();
+        Logger.Debug("Node id is: %s", node.getId());
+        Logger.Debug( "Node degree is: %s", node.getDegree());
+        Logger.Debug( "Tree max degree is: %s", node.getMaxDegree());
+        if (node.getPelegStatus() == leaderElectStatus.ISLEADER) {
+            Logger.Debug( "Tree max degree is: %s", node.getMaxDegree());
+            Logger.Debug("Node parent is null.");
+        } else {
+            Logger.Debug("Node parent is : %s", node.getParent());
+        }
+        if (node.getChildren().size() == 0) {
+            Logger.Debug("Node children is null");
+        } else {
+            StringBuilder sb = new StringBuilder();
+            for(int key: node.getChildren().keySet()){
+                sb.append(key);
+                sb.append(" ");
+            }
+            Logger.Debug("Node children is: %s", sb.toString());
         }
     }
 }

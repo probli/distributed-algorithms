@@ -9,7 +9,7 @@ enum leaderElectStatus {
 }
 
 enum state {
-    HOLD, ELECTLEADER
+    HOLD, ELECTLEADER, DONE, SEARCH
 }
 
 public class Node {
@@ -18,19 +18,25 @@ public class Node {
     private int port;
     private int round;
     private state nodeState;
-    private HashMap<Integer, Node> neighbors = new HashMap<Integer, Node>();
-
+    private HashMap<Integer, Node> neighbors = new HashMap<>();
+    private HashMap<Integer, Node> children = new HashMap<>();
+    private int parent;
     private MsgService msgService;
-
     private leaderElectStatus pelegStatus;
+    private int degree;
+    private int maxDegree;
+    private int childrenMsgNo;
     private int largestUID;
     private int receivedLargestUID;
     private int distanceOfLargestUID;
     private int receivedDistanceOfLargestUID;
     private int unchangedRound;
     private int processedMsgNo;
-
+    public boolean marked;
+    private int replyMsgNo;
+    private boolean receiveMsgStatus;
     private static ConcurrentLinkedQueue<Msg> bufferedMsg = new ConcurrentLinkedQueue<>();
+    private static ConcurrentLinkedQueue<Msg> treeBufferedMsg = new ConcurrentLinkedQueue<>();
 
     public Node(int id, String host, int port) {
         this.id = id;
@@ -56,11 +62,13 @@ public class Node {
         Logger.Info("Connected to All neighbors....");
 
         checkBuffer();
+
         while (!msgService.isInChannelsReady()) {
             Logger.Info("Waiting for in Channels ready....");
             Thread.sleep(1000);
         }
         waitForMessage();
+        checkTreeBuffer();
         Logger.Info("Ready for messaging....");
     }
 
@@ -87,7 +95,7 @@ public class Node {
                 if (msg.getContent().equals("LEADER")) {
                     leaderElected(msg);
                 } else if(msg.getRound() == getRound()) {
-                    Logger.Debug("Processing...  %s", msg.toString());
+                    Logger.Debug("Processing elect leader message...  %s", msg.toString());
                     String[] knowledge = msg.getContent().split(",");
                     int uid = Integer.parseInt(knowledge[0]);
                     int d = Integer.parseInt(knowledge[1]);
@@ -99,8 +107,51 @@ public class Node {
                 } else {
                     addMsgToBuffer(msg);
                 }
-            } else if(msg.getAction().equals(MsgAction.TEST)) {
+            } else if (msg.getAction().equals(MsgAction.TEST)) {
                 Logger.Debug("%s", msg.toString());
+            } else if (msg.getAction().equals(MsgAction.SENDSEARCH)) {
+                String content = msg.getContent();
+                int fromId = msg.getFromId();
+                if (content.equals("Search") || content.equals("Null")){
+                    if (!marked && msg.getRound() != getRound()) {
+                        addMsgToTreeBuffer(msg);
+                    } else if (msg.getRound() == getRound()){
+                        if (content.equals("Search")) {
+                            updateProcessedMsgNo();
+                            if (marked == false) {
+                                marked = true;
+                                setDegree(getRound());
+                                maxDegree = Math.max(degree, maxDegree);
+                                setParent(fromId);
+                                replySearchMsg("Accept", fromId);
+                            } else{
+                                replySearchMsg("Reject", fromId);
+                            }
+                        } else {
+                            replySearchMsg("None", fromId);
+                            updateProcessedMsgNo();
+                        }
+                    }
+                    else if(content.equals("Search") && marked){
+                        replySearchMsg("Reject", fromId);
+                    }
+
+                } else if (content.equals("Accept")) {
+                    children.put(fromId, neighbors.get(fromId));
+                    replyMsgNo++;
+                } else if (content.equals("Reject")) {
+                    replyMsgNo++;
+                }
+
+                if (isInteger(content)) {
+                    maxDegree = Math.max(maxDegree, Integer.parseInt(content));
+                    updateChildrenMsgNo();
+                }
+
+                if((getPelegStatus() == leaderElectStatus.ISLEADER && replyMsgNo == neighbors.size())
+                        || getPelegStatus() == leaderElectStatus.ISNOTLEADER && replyMsgNo == neighbors.size() -1){
+                        receiveMsgStatus = true;
+                }
             }
         } catch (Exception e) {
             StringWriter sw = new StringWriter();
@@ -112,7 +163,7 @@ public class Node {
 
     public void leaderElected(Msg msg) {
         if (getNodeState() == state.ELECTLEADER) {
-            Logger.Debug("Leader %s Recieved", msg.getSrcId());
+            Logger.Debug("Leader %s Received", msg.getSrcId());
             setNodeState(state.HOLD);
             transferMsg(msg);
         }
@@ -207,36 +258,93 @@ public class Node {
         broadcastMsg(testMsg);
     }
 
+    public void buildTreeInit(){
+        this.nodeState = state.SEARCH;
+        this.marked = false;
+        this.round = 0;
+        this.degree = 0;
+        this.maxDegree = 0;
+        this.parent = -1;
+        this.processedMsgNo = 0;
+        this.childrenMsgNo = 0;
+        this.replyMsgNo = 0;
+        receiveMsgStatus = false;
+    }
+
+    public void sendSearchMsg(String str) {
+        Msg searchMsg = MsgFactory.searchMsg(this);
+        searchMsg.setContent(str);
+        broadcastMsg(searchMsg);
+    }
+
+    public void replySearchMsg(String str, int to) {
+        Msg searchMsg = MsgFactory.searchMsg(this);
+        searchMsg.setToId(to);
+        searchMsg.setContent(str);
+        msgService.sendMsg(searchMsg);
+        if(isInteger(str)) {
+            setNodeState(state.DONE);
+        }
+    }
+
     public void checkBuffer() {
-        (new Thread() {
-            @Override
-            public void run(){
-                while (true) {
-                    while (!bufferedMsg.isEmpty()) {
-                        synchronized(bufferedMsg){
-                            for (Msg m : bufferedMsg) {
-                                if (m.getRound() == getRound()){
-                                    processMsg(m);
-                                    bufferedMsg.remove(m);
-                                    break;
-                                }
+        Runnable task = ()-> {
+            while (true) {
+                while (!bufferedMsg.isEmpty()) {
+                    synchronized(bufferedMsg){
+                        for (Msg m : bufferedMsg) {
+                            if (m.getRound() == getRound()){
+                                processMsg(m);
+                                bufferedMsg.remove(m);
+                                break;
                             }
                         }
                     }
                 }
             }
-        }).start();
+        };
+        new Thread(task).start();
     }
+
+    public void checkTreeBuffer() {
+        Runnable task = ()-> {
+            while (true) {
+                while (!treeBufferedMsg.isEmpty()) {
+                    synchronized(treeBufferedMsg){
+                        for (Msg m : treeBufferedMsg) {
+                            if (m.getRound() == getRound()){
+                                processMsg(m);
+                                treeBufferedMsg.remove(m);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        };
+        new Thread(task).start();
+    }
+
 
     public void emptyMsgBuffer() {
         synchronized(bufferedMsg){
             bufferedMsg.clear();
         }
     }
-
+    public void emptyTreeMsgBuffer() {
+        synchronized(treeBufferedMsg){
+            treeBufferedMsg.clear();
+        }
+    }
     public void addMsgToBuffer(Msg msg) {
         synchronized(bufferedMsg) {
             bufferedMsg.add(msg);
+        }
+    }
+
+    public void addMsgToTreeBuffer(Msg msg) {
+        synchronized(treeBufferedMsg) {
+            treeBufferedMsg.add(msg);
         }
     }
 
@@ -247,6 +355,7 @@ public class Node {
             }
         }
     }
+
     public int getId() {
         return id;
     }
@@ -263,15 +372,44 @@ public class Node {
         return round;
     }
 
+    public int getParent() { return parent; }
+
+    public void setParent(int p) { parent = p; }
+
+    public int getDegree() { return degree; }
+
+    public int getMaxDegree() { return maxDegree; }
+
+    public int getChildrenMsgNo() { return childrenMsgNo; }
+
+    public void setDegree(int d) { degree = d; }
+
+//    public void setMaxDegree(int m) {
+//        maxDegree = m;
+//    }
+
+    public int getReplyMsgNo() {
+        return replyMsgNo;
+    }
+
+    public boolean getReceiveMsgStatus() {
+        return receiveMsgStatus;
+    }
+
     public void setRound(int r) {
         this.round = r;
     }
+
     public void updateRound() {
         this.round = this.round + 1;
     }
 
     public HashMap<Integer, Node> getNeighbors() {
         return neighbors;
+    }
+
+    public HashMap<Integer, Node> getChildren() {
+        return children;
     }
 
     public void addNeighbor(int id, String host, int port) {
@@ -338,7 +476,20 @@ public class Node {
         return this.nodeState;
     }
 
+    public synchronized void updateChildrenMsgNo() {
+        this.childrenMsgNo = this.childrenMsgNo + 1;
+    }
+
     public synchronized void setNodeState(state s) {
         this.nodeState = s;
+    }
+
+    public boolean isInteger(String str){
+        for (int i = str.length();--i>=0;){
+            if (!Character.isDigit(str.charAt(i))){
+                return false;
+            }
+        }
+        return true;
     }
 }
