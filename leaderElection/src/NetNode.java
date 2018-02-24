@@ -112,7 +112,7 @@ public class NetNode {
     public static void electLeader(Node node) {
         node.leaderElectInit();
         int roundMsgNumber = node.getNeighbors().size();
-        while (node.getNodeState() == state.ELECTLEADER) {
+        while (node.getNodeState() == STATE.ELECTLEADER) {
             if (node.getRound() == 0 || node.getProcessedMsgNo() == roundMsgNumber * node.getRound()) {
                 Logger.Debug("Round: %s, UID: %s, Dis: %s", node.getRound() + 1, node.getLargestUID(), node.getDistanceOfLargestUID());
                 String msgContent = node.getLargestUID() + "," + node.getDistanceOfLargestUID();
@@ -124,16 +124,16 @@ public class NetNode {
 
     public static void buildTree(Node node) {
         node.buildTreeInit();
-        if(node.getPelegStatus() == leaderElectStatus.ISLEADER) {
+        if(node.getPelegStatus() == LEADERELECTSTATUS.ISLEADER) {
             node.marked = true;
             node.setParent(node.getId());
         }
-        while (node.getNodeState() == state.SEARCH) {
+        while (node.getNodeState() == STATE.SEARCH) {
             if (node.getRound() == 0 || node.getProcessedMsgNo() == node.getNeighbors().size() * node.getRound()) {
                 node.updateRound();
                 if(node.marked){
                     node.sendSearchMsg("Search");
-                    node.setNodeState(state.HOLD);
+                    node.setNodeState(STATE.HOLD);
                 }else{
                     node.sendSearchMsg("Null");
                 }
@@ -141,9 +141,9 @@ public class NetNode {
         }
 
         Logger.Debug( "Searching message is completed");
-        while(node.getNodeState() != state.DONE) {
+        while(node.getNodeState() != STATE.DONE) {
             if (node.getReplyMsgNo() == node.getNeighbors().size() && node.getChildren().size() == 0) {
-                node.setNodeState(state.DONE);
+                node.setNodeState(STATE.DONE);
             }
         }
 
@@ -156,7 +156,7 @@ public class NetNode {
         Logger.Debug("Node id is: %s", node.getId());
         Logger.Debug( "Node degree is: %s", node.getDegree());
         Logger.Debug( "Tree max degree is: %s", node.getMaxDegree());
-        if (node.getPelegStatus() == leaderElectStatus.ISLEADER) {
+        if (node.getPelegStatus() == LEADERELECTSTATUS.ISLEADER) {
             Logger.Debug( "Tree max degree is: %s", node.getMaxDegree());
             Logger.Debug("Node parent is null.");
         } else {

@@ -4,11 +4,11 @@ import java.io.StringWriter;
 import java.util.HashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-enum leaderElectStatus {
+enum LEADERELECTSTATUS {
     UNKNOWN, ISNOTLEADER, ISLEADER
 }
 
-enum state {
+enum STATE {
     HOLD, ELECTLEADER, DONE, SEARCH
 }
 
@@ -17,12 +17,12 @@ public class Node {
     private String host;
     private int port;
     private int round;
-    private state nodeState;
+    private STATE nodeState;
     private HashMap<Integer, Node> neighbors = new HashMap<>();
     private HashMap<Integer, Node> children = new HashMap<>();
     private int parent;
     private MsgService msgService;
-    private leaderElectStatus pelegStatus;
+    private LEADERELECTSTATUS pelegStatus;
     private int degree;
     private int maxDegree;
     private int childrenMsgNo;
@@ -108,7 +108,7 @@ public class Node {
                 }
             } else if (msg.getAction().equals(MsgAction.TEST)) {
                 Logger.Debug("%s", msg.toString());
-            } else if (msg.getAction().equals(MsgAction.SENDSEARCH)) {
+            } else if (msg.getAction().equals(MsgAction.SEARCH)) {
                 String content = msg.getContent();
                 int fromId = msg.getFromId();
                 if (content.equals("Search") || content.equals("Null")){
@@ -146,7 +146,7 @@ public class Node {
                     maxDegree = Math.max(maxDegree, Integer.parseInt(content));
                     updateChildrenMsgNo();
                     if(getChildrenMsgNo() == children.size()) {
-                        setNodeState(state.DONE);
+                        setNodeState(STATE.DONE);
                     }
                 }
             }
@@ -159,9 +159,9 @@ public class Node {
     }
 
     public void leaderElected(Msg msg) {
-        if (getNodeState() == state.ELECTLEADER) {
+        if (getNodeState() == STATE.ELECTLEADER) {
             Logger.Debug("Leader %s Received", msg.getSrcId());
-            setNodeState(state.HOLD);
+            setNodeState(STATE.HOLD);
             transferMsg(msg);
         }
     }
@@ -187,23 +187,23 @@ public class Node {
             setDistanceOfLargestUID(getReceivedDistanceOfLargestUID());
         } else if (getUnchangedRound() == 0) {
             setUnchangedRound(1);
-        } else if (getPelegStatus() == leaderElectStatus.UNKNOWN){
+        } else if (getPelegStatus() == LEADERELECTSTATUS.UNKNOWN){
             determineLeader();
         }
     }
 
     public void determineLeader() {
         if (id == getLargestUID()) {
-            setPelegStatus(leaderElectStatus.ISLEADER);
+            setPelegStatus(LEADERELECTSTATUS.ISLEADER);
             broadcastLeader();
         } else {
-            setPelegStatus(leaderElectStatus.ISNOTLEADER);
+            setPelegStatus(LEADERELECTSTATUS.ISNOTLEADER);
         }
         Logger.Debug("leader election result: %s", getPelegStatus());
     }
 
     public void broadcastLeader() {
-        setNodeState(state.HOLD);
+        setNodeState(STATE.HOLD);
         String msgContent = "LEADER";
         sendElectMsg(msgContent);
     }
@@ -231,13 +231,13 @@ public class Node {
     }
 
     public void leaderElectInit() {
-        this.nodeState = state.ELECTLEADER;
+        this.nodeState = STATE.ELECTLEADER;
         this.round = 0;
         this.largestUID = id;
         this.receivedLargestUID = id;
         this.distanceOfLargestUID = 0;
         this.receivedDistanceOfLargestUID = 0;
-        this.pelegStatus = leaderElectStatus.UNKNOWN;
+        this.pelegStatus = LEADERELECTSTATUS.UNKNOWN;
         this.unchangedRound = 0;
         this.processedMsgNo = 0;
     }
@@ -256,7 +256,7 @@ public class Node {
     }
 
     public void buildTreeInit(){
-        this.nodeState = state.SEARCH;
+        this.nodeState = STATE.SEARCH;
         this.marked = false;
         this.round = 0;
         this.degree = 0;
@@ -279,7 +279,7 @@ public class Node {
         searchMsg.setContent(str);
         msgService.sendMsg(searchMsg);
         if(isInteger(str)) {
-            setNodeState(state.DONE);
+            setNodeState(STATE.DONE);
         }
     }
 
@@ -416,11 +416,11 @@ public class Node {
         this.processedMsgNo = this.processedMsgNo + 1;
     }
 
-    public leaderElectStatus getPelegStatus() {
+    public LEADERELECTSTATUS getPelegStatus() {
         return this.pelegStatus;
     }
 
-    public synchronized void setPelegStatus(leaderElectStatus status) {
+    public synchronized void setPelegStatus(LEADERELECTSTATUS status) {
         this.pelegStatus = status;
     }
 
@@ -464,7 +464,7 @@ public class Node {
         this.unchangedRound = r;
     }
 
-    public synchronized state getNodeState() {
+    public synchronized STATE getNodeState() {
         return this.nodeState;
     }
 
@@ -472,7 +472,7 @@ public class Node {
         this.childrenMsgNo = this.childrenMsgNo + 1;
     }
 
-    public synchronized void setNodeState(state s) {
+    public synchronized void setNodeState(STATE s) {
         this.nodeState = s;
     }
 
