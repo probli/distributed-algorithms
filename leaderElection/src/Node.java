@@ -80,8 +80,9 @@ public class Node {
     private void processMsg(Msg msg) {
         try {
 
-            if(msg.getRound() < getRound()){
+            if(msg.getRound() > getRound()){
                 addMsgToBuffer(msg);
+                return;
             }
 
             if (msg.getAction().equals(MsgAction.DISCONNECT)) {
@@ -102,7 +103,7 @@ public class Node {
                     int uid = Integer.parseInt(knowledge[0]);
                     int d = Integer.parseInt(knowledge[1]);
                     updateKnowledge(uid, d);
-                    if (getProcessedMsgNo() == getRound() * neighbors.size()) {
+                    if (getProcessedMsgNo() == getRound() * neighbors.size() - 1) {
                         checkKnowledge();
                     }
                     updateProcessedMsgNo();
@@ -138,9 +139,9 @@ public class Node {
     }
 
     public void leaderElected(Msg msg) {
-        if (getState() == NodeState.ELECTING) {
+        if (getState() == NodeState.ELECTED) {
             Logger.Debug("Leader %s Received", msg.getSrcId());
-            setState(NodeState.ELECTED);
+            setState(NodeState.IDLE);
             setIsLeader(false);
             transferMsg(msg);
         }
@@ -174,7 +175,7 @@ public class Node {
 
     public void determineLeader() {
         if (id == getLargestUID()) {
-            setState(NodeState.ELECTED);
+            setState(NodeState.IDLE);
             setIsLeader(true);
             broadcastLeader();
         } else {

@@ -114,7 +114,7 @@ public class NetNode {
     public static void electLeader(Node node) {
         node.leaderElectInit();
         int roundMsgNumber = node.getNeighbors().size();
-        while (node.getState() == NodeState.ELECTING) {
+        while (node.getState() != NodeState.IDLE) {
             if (node.getProcessedMsgNo() == roundMsgNumber * node.getRound()) {
                 node.updateRound();
                 node.sendElectMsg();
