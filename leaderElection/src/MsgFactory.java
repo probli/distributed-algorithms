@@ -40,15 +40,52 @@ public class MsgFactory {
         msg.setSrcId(node.getId());
         msg.setFromId(node.getId());
         msg.setRound(node.getRound());
+        msg.setContent(node.getLargestUID() + "," + node.getDistanceOfLargestUID());
         return msg;
     }
 
     public static Msg searchMsg(Node node) {
         Msg msg = new Msg();
-        msg.setAction(MsgAction.SENDSEARCH);
+        msg.setAction(MsgAction.SEARCH);
         msg.setSrcId(node.getId());
         msg.setFromId(node.getId());
         msg.setRound(node.getRound());
+        return msg;
+    }
+
+    public static Msg acceptMsg(Node node) {
+        Msg msg = new Msg();
+        msg.setAction(MsgAction.ACCEPT);
+        msg.setSrcId(node.getId());
+        msg.setFromId(node.getId());
+        msg.setRound(0);
+        return msg;
+    }
+
+    public static Msg rejectMsg(Node node) {
+        Msg msg = new Msg();
+        msg.setAction(MsgAction.REJECT);
+        msg.setSrcId(node.getId());
+        msg.setFromId(node.getId());
+        msg.setRound(0);
+        return msg;
+    }
+
+    public static Msg emptyMsg(Node node) {
+        Msg msg = new Msg();
+        msg.setAction(MsgAction.EMPTY);
+        msg.setSrcId(node.getId());
+        msg.setFromId(node.getId());
+        msg.setRound(node.getRound());
+        return msg;
+    }
+
+    public static Msg degreeMsg(Node node) {
+        Msg msg = new Msg();
+        msg.setAction(MsgAction.DEGREE);
+        msg.setSrcId(node.getId());
+        msg.setFromId(node.getId());
+        msg.setRound(0);
         return msg;
     }
 }
