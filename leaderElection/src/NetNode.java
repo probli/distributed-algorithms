@@ -27,13 +27,20 @@ public class NetNode {
 
             electLeader(node);
             Logger.Debug("Leader election finished. The result is: %s", node.getIsLeader());
+
             node.setRound(0);
+            node.buildTreeInit();
             node.emptyMsgBuffer();
 
+            int count = 5;
+            while (count > 0) {
+                Logger.Info("%d seconds to start.", count);
+                Thread.sleep(1000);
+                count--;
+            }
 
             Logger.Debug("Begin to create BFS tree.");
             buildTree(node);
-            node.emptyMsgBuffer();
 
         } catch (Exception e) {
             StringWriter sw = new StringWriter();
@@ -111,6 +118,7 @@ public class NetNode {
         }
 
     }
+
     public static void electLeader(Node node) {
         node.leaderElectInit();
         int roundMsgNumber = node.getNeighbors().size();
@@ -127,13 +135,13 @@ public class NetNode {
         node.buildTreeInit();
 
 
-        if(node.getIsLeader()) {
+        if (node.getIsLeader()) {
             node.setState(NodeState.SEARCHING);
             node.setParent(node.getId());
         }
 
-        while(node.getState() != NodeState.CONVERGING) {
-            if (node.getProcessedMsgNo() == node.getNeighbors().size() * node.getRound()) {
+        while (node.getState() != NodeState.CONVERGING) {
+            if (node.getRound() == 0 || node.getProcessedMsgNo() == node.getNeighbors().size() * node.getRound()) {
                 node.updateRound();
 
                 if (node.getState() == NodeState.SEARCHING) {
@@ -145,21 +153,23 @@ public class NetNode {
             }
         }
 
-        while(node.getState() == NodeState.CONVERGING) {
-            if(node.getChildrenMsgNo() >= node.getChildren().size()) {
-                node.sendDegreeMsg();
+        while (node.getState() == NodeState.CONVERGING) {
+            if (node.getChildrenMsgNo() >= node.getChildren().size()) {
+                if (!node.getIsLeader()) {
+                    node.sendDegreeMsg();
+                }
                 node.setState(NodeState.DONE);
             }
         }
 
-        Logger.Debug( "ConvergeCast is completed");
+        Logger.Debug("ConvergeCast is completed");
 
 
-        Logger.Debug("P: %s ---> %s", node.getParent() == node.getId()? " null" : node.getParent(), node.getId());
+        Logger.Debug("P: %s ---> %s", node.getParent() == node.getId() ? " null" : node.getParent(), node.getId());
 
 
         StringBuilder sb = new StringBuilder();
-        for(int key: node.getChildren().keySet()){
+        for (int key : node.getChildren().keySet()) {
             sb.append(key);
             sb.append(", ");
         }
@@ -167,7 +177,7 @@ public class NetNode {
         Logger.Debug("Node %s : {%s}", node.getId(), sb.toString());
 
         if (node.getIsLeader()) {
-            Logger.Debug( "Tree max degree is: %s", node.getMaxDegree());
+            Logger.Debug("Tree max degree is: %s", node.getMaxDegree());
         }
 
     }
