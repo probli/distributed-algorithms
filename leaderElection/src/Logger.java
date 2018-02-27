@@ -71,7 +71,7 @@ public class Logger {
                 log = String.format(log, args);
             }
             log = String.format("[Debug] #%d - %s: %s", localNodeId, getCurrentTimeStamp(), log);
-            System.out.println(log);
+            //System.out.println(log);
             if (outputStream != null) {
                 outputStream.println(log);
             }

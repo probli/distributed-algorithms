@@ -25,6 +25,13 @@ public class NetNode {
             // only enable when debugging connections
             //testMode(node);
 
+            int count = 5;
+            while (count > 0) {
+                Logger.Info("%d seconds to start.", count);
+                Thread.sleep(1000);
+                count--;
+            }
+
             electLeader(node);
             Logger.Debug("Leader election finished. The result is: %s", node.getIsLeader());
 
@@ -32,7 +39,7 @@ public class NetNode {
             node.buildTreeInit();
             node.emptyMsgBuffer();
 
-            int count = 5;
+            count = 5;
             while (count > 0) {
                 Logger.Info("%d seconds to start.", count);
                 Thread.sleep(1000);
@@ -74,7 +81,7 @@ public class NetNode {
                         }
                         nodes.put(t[0], line);
                     } else if (lineNum > nodeNum) {
-                        if (!readLine.startsWith(String.valueOf(nodeId))) {
+                        if(!t[0].equals(String.valueOf(nodeId))) {
                             continue;
                         }
                         String nodeInfo = nodes.get(nodeId);
@@ -88,6 +95,7 @@ public class NetNode {
                             String[] s2 = nodes.get(t[i]).trim().split("\\s+");
                             node.addNeighbor(Integer.parseInt(s2[0]), s2[1].trim(), Integer.parseInt(s2[2]));
                         }
+                        break;
                     }
                 }
             }
@@ -191,7 +199,7 @@ public class NetNode {
         Logger.Info("Node %s : {%s}", node.getId(), sb.toString());
 
         if (node.getIsLeader()) {
-            Logger.Info("Tree max degree is: %s", node.getMaxDegree());
+            Logger.Info("----------------------------------  Tree max degree is: %s", node.getMaxDegree());
         }
 
     }

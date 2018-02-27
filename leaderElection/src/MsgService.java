@@ -64,7 +64,7 @@ public class MsgService {
             Socket socket = serverSocket.accept();
             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             String inputLine = in.readLine();
-            Logger.Debug(inputLine);
+            //Logger.Debug(inputLine);
             Msg msg = new Msg(inputLine);
 
             if (msg.getAction().equals(MsgAction.CONNECT)) {

@@ -53,12 +53,22 @@ public class Node {
         connectNeighbors();
         Logger.Info("Connected to All neighbors....");
 
-        checkBuffer();
+
 
         while (!msgService.isInChannelsReady()) {
-            Logger.Info("Waiting for in Channels ready....");
+            StringBuilder sb = new StringBuilder("Current InChannels: ");
+            for(int id : msgService.channels.keySet()) {
+                MsgChannel ch = msgService.channels.getOrDefault(id, null);
+                if(ch != null && ch.hasInChannel()) {
+                    sb.append(id + ", ");
+                }
+            }
+            Logger.Info(sb.toString());
             Thread.sleep(1000);
         }
+
+        checkBuffer();
+
         waitForMessage();
         Logger.Info("Ready for messaging....");
     }
@@ -144,7 +154,7 @@ public class Node {
 
     public void leaderElected(Msg msg) {
         if (getState() == NodeState.ELECTED) {
-            Logger.Debug("Leader %s Received", msg.getSrcId());
+            Logger.Info("Leader %s Received", msg.getSrcId());
             setState(NodeState.IDLE);
             setIsLeader(false);
             transferMsg(msg);
@@ -186,7 +196,7 @@ public class Node {
             setState(NodeState.ELECTED);
             setIsLeader(false);
         }
-        Logger.Debug("leader election result: %s", getIsLeader());
+        Logger.Info("leader election result: %s", getIsLeader());
     }
 
     public void broadcastLeader() {
