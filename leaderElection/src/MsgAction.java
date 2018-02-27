@@ -8,4 +8,5 @@ public class MsgAction {
     public static final String REJECT = "REJECT";
     public static final String DEGREE = "DEGREE";
     public static final String EMPTY = "EMPTY";
+    public static final String END = "END";
 }

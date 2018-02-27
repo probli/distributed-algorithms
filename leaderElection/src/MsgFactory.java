@@ -88,4 +88,13 @@ public class MsgFactory {
         msg.setRound(0);
         return msg;
     }
+
+    public static Msg endMsg(Node node) {
+        Msg msg = new Msg();
+        msg.setAction(MsgAction.END);
+        msg.setSrcId(node.getId());
+        msg.setFromId(node.getId());
+        msg.setRound(0);
+        return msg;
+    }
 }

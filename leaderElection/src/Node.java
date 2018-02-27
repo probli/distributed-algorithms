@@ -5,7 +5,7 @@ import java.util.HashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 enum NodeState {
-    ELECTING, ELECTED, IDLE, SEARCHING, WAITING, CONVERGING, DONE
+    ELECTING, ELECTED, IDLE, SEARCHING, WAITING, CONVERGING, CONVERGED, DONE
 }
 
 public class Node {
@@ -130,6 +130,9 @@ public class Node {
                 int d = this.getChildren().size() + (this.getParent() == this.getId() ? 0 : 1);
                 this.maxDegree = Math.max(d, Math.max(this.maxDegree, Integer.parseInt(msg.getContent().trim())));
                 updateChildrenMsgNo();
+            } else if(msg.getAction().equals(MsgAction.END)) {
+                broadcastToChildren(msg);
+                setState(NodeState.DONE);
             }
         } catch (Exception e) {
             StringWriter sw = new StringWriter();
@@ -211,6 +214,13 @@ public class Node {
         }
     }
 
+    public void broadcastToChildren(Msg msg) {
+        for (Node node : children.values()) {
+            msg.setToId(node.getId());
+            msgService.sendMsg(msg);
+        }
+    }
+
     public void disconnect(int nodeId) throws IOException {
         msgService.disconnect(nodeId);
     }
@@ -275,6 +285,11 @@ public class Node {
         msg.setToId(this.parent);
         msg.setContent(String.valueOf(Math.max(this.children.size() + 1, this.maxDegree)));
         msgService.sendMsg(msg);
+    }
+
+    public void sendEndMsg() {
+        Msg msg = MsgFactory.endMsg(this);
+        broadcastMsg(msg);
     }
 
     public void checkBuffer() {
@@ -433,6 +448,7 @@ public class Node {
     }
 
     public synchronized void setState(NodeState s) {
+        Logger.Debug(this.state + " --- > " + s);
         this.state = s;
     }
 
