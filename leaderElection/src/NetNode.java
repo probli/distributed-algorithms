@@ -52,35 +52,45 @@ public class NetNode {
 
     public static Node initNode(String configs, String nodeId) throws Exception {
 
+        Node node = null;
         HashMap<String, String> nodes = new HashMap<>();
         try (BufferedReader br = new BufferedReader(new FileReader(configs))) {
             String line;
             int lineNum = 0;
+            int nodeNum = -1;
             while ((line = br.readLine()) != null) {
-                lineNum++;
+
                 line = line.trim().toLowerCase();
                 if (isValidLine(line)) {
-                    String realLine = line.split("#")[0];
-                    String[] t = realLine.split("\\s+");
-                    if (t.length != 4) {
-                        throw new Exception(String.format("Invalid configs at line %d", lineNum));
+                    lineNum++;
+                    String readLine = line.split("#")[0];
+                    String[] t = readLine.split("\\s+");
+                    if (nodeNum == -1) {
+                        nodeNum = Integer.parseInt(readLine);
+                        lineNum = 0;
+                    } else if (lineNum <= nodeNum) {
+                        if (t.length != 3) {
+                            throw new Exception(String.format("Invalid configs at line %d", lineNum));
+                        }
+                        nodes.put(t[0], line);
+                    } else if (lineNum > nodeNum) {
+                        if (!readLine.startsWith(String.valueOf(nodeId))) {
+                            continue;
+                        }
+                        String nodeInfo = nodes.get(nodeId);
+                        String[] s1 = nodeInfo.trim().split("\\s+");
+                        node = new Node(Integer.parseInt(s1[0]), s1[1], Integer.parseInt(s1[2]));
+                        for (int i = 1; i < t.length; i++) {
+                            if (t[i].equals(nodeId)) continue;
+                            if (!nodes.containsKey(t[i])) {
+                                throw new Exception(String.format("Can not find neighbor [ %s ] in nodeList.", t[i]));
+                            }
+                            String[] s2 = nodes.get(t[i]).trim().split("\\s+");
+                            node.addNeighbor(Integer.parseInt(s2[0]), s2[1].trim(), Integer.parseInt(s2[2]));
+                        }
                     }
-                    nodes.put(t[0], line);
                 }
             }
-        }
-
-        String nodeInfo = nodes.get(nodeId);
-        String[] t = nodeInfo.trim().split("\\s+");
-        Node node = new Node(Integer.parseInt(t[0]), t[1], Integer.parseInt(t[2]));
-
-        for (String key : t[3].trim().split(",")) {
-            if (key.equals(nodeId)) continue;
-            if (!nodes.containsKey(key)) {
-                throw new Exception(String.format("Can not find neighbor [ %s ] in nodeList.", key));
-            }
-            String[] ss = nodes.get(key).trim().split("\\s+");
-            node.addNeighbor(Integer.parseInt(ss[0]), ss[1].trim(), Integer.parseInt(ss[2]));
         }
 
         return node;
