@@ -25,13 +25,6 @@ public class NetNode {
             // only enable when debugging connections
             //testMode(node);
 
-            int count = 5;
-            while (count > 0) {
-                Logger.Info("%d seconds to start.", count);
-                Thread.sleep(1000);
-                count--;
-            }
-
             electLeader(node);
             Logger.Debug("Leader election finished. The result is: %s", node.getIsLeader());
 
@@ -39,7 +32,7 @@ public class NetNode {
             node.buildTreeInit();
             node.emptyMsgBuffer();
 
-            count = 5;
+            int count = 5;
             while (count > 0) {
                 Logger.Info("%d seconds to start.", count);
                 Thread.sleep(1000);
@@ -172,7 +165,7 @@ public class NetNode {
             }
 
            if(node.getState() == NodeState.CONVERGING) {
-               if(node.getChildrenMsgNo() >= node.getChildren().size()) {
+               if(node.getChildrenMsgNo() == node.getChildren().size()) {
                    if (!node.getIsLeader()) {
                        node.setState(NodeState.CONVERGED);
                        node.sendDegreeMsg();
