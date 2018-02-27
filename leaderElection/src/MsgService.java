@@ -6,7 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 
 public class MsgService {
-    HashMap<Integer, MsgChannel> channels = new HashMap<Integer, MsgChannel>();
+    HashMap<Integer, MsgChannel> channels = new HashMap<>();
 
     Node nodeInfo;
 
@@ -117,10 +117,10 @@ public class MsgService {
                         while (ch.isConnecting()) {
                             String inputLine;
                             while ((inputLine = ch.getInChannel().readLine()) != null) {
-                                Logger.Debug("\n=== Received Msg Start ===");
-                                Logger.Debug(inputLine);
+                                //Logger.Debug("\n=== Received Msg Start ===");
+                                //Logger.Debug(inputLine);
                                 Msg msg = new Msg(inputLine);
-
+                                Logger.Debug(String.format("[RECEIVED] %s | s: %d, f: %d, t: %d, r: %d, c: %s", msg.getAction(), msg.getSrcId(), msg.getFromId(), msg.getToId(), msg.getRound(), msg.getContent()));
                                 onReceiveMsg(msg);
                             }
                         }
@@ -152,6 +152,8 @@ public class MsgService {
     }
 
     public void sendMsg(Msg msg) {
+        Logger.Debug(String.format("[SEND] %s | s: %d, f: %d, t: %d, r: %d, c: %s", msg.getAction(), msg.getSrcId(), msg.getFromId(), msg.getToId(), msg.getRound(), msg.getContent()));
+
         MsgChannel ch = channels.get(msg.getToId());
         ch.getOutChannel().println(msg.toString());
     }

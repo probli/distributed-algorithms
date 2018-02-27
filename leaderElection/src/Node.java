@@ -4,12 +4,8 @@ import java.io.StringWriter;
 import java.util.HashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-enum leaderElectStatus {
-    UNKNOWN, ISNOTLEADER, ISLEADER
-}
-
-enum state {
-    HOLD, ELECTLEADER
+enum NodeState {
+    ELECTING, ELECTED, IDLE, SEARCHING, WAITING, CONVERGING, DONE
 }
 
 public class Node {
@@ -17,19 +13,21 @@ public class Node {
     private String host;
     private int port;
     private int round;
-    private state nodeState;
-    private HashMap<Integer, Node> neighbors = new HashMap<Integer, Node>();
-
+    private NodeState state;
+    private boolean isLeader;
+    private HashMap<Integer, Node> neighbors = new HashMap<>();
+    private HashMap<Integer, Node> children = new HashMap<>();
+    private int parent;
     private MsgService msgService;
-
-    private leaderElectStatus pelegStatus;
+    private int maxDegree;
+    private int childrenMsgNo;
     private int largestUID;
     private int receivedLargestUID;
     private int distanceOfLargestUID;
     private int receivedDistanceOfLargestUID;
     private int unchangedRound;
     private int processedMsgNo;
-
+    private int replyMsgNo;
     private static ConcurrentLinkedQueue<Msg> bufferedMsg = new ConcurrentLinkedQueue<>();
 
     public Node(int id, String host, int port) {
@@ -56,6 +54,7 @@ public class Node {
         Logger.Info("Connected to All neighbors....");
 
         checkBuffer();
+
         while (!msgService.isInChannelsReady()) {
             Logger.Info("Waiting for in Channels ready....");
             Thread.sleep(1000);
@@ -72,7 +71,6 @@ public class Node {
         msgService.registerEventListenser(new MsgEventListener() {
             @Override
             public void onReceiveMsg(Msg msg) {
-                // Logger.Info("onReceiveMsg: " + msg.toString());
                 processMsg(msg);
             }
         });
@@ -81,13 +79,26 @@ public class Node {
 
     private void processMsg(Msg msg) {
         try {
+
+            if (msg.getRound() > getRound()) {
+                addMsgToBuffer(msg);
+                return;
+            }
+
             if (msg.getAction().equals(MsgAction.DISCONNECT)) {
+                // receive a msg to disconnect with the src-node.
                 msgService.disconnect(msg.getFromId());
+
             } else if (msg.getAction().equals(MsgAction.ELECTLEADER)) {
+                // Electing leader
+
+                // receive a broadcast msg from leader
                 if (msg.getContent().equals("LEADER")) {
                     leaderElected(msg);
-                } else if(msg.getRound() == getRound()) {
-                    Logger.Debug("Processing...  %s", msg.toString());
+
+                } else if (msg.getRound() == getRound()) {
+                    // receive msg from nbs in the same round
+                    Logger.Debug("Processing elect leader message...  %s", msg.toString());
                     String[] knowledge = msg.getContent().split(",");
                     int uid = Integer.parseInt(knowledge[0]);
                     int d = Integer.parseInt(knowledge[1]);
@@ -96,11 +107,29 @@ public class Node {
                         checkKnowledge();
                     }
                     updateProcessedMsgNo();
-                } else {
-                    addMsgToBuffer(msg);
                 }
-            } else if(msg.getAction().equals(MsgAction.TEST)) {
+            } else if (msg.getAction().equals(MsgAction.TEST)) {
                 Logger.Debug("%s", msg.toString());
+
+            } else if (msg.getAction().equals(MsgAction.SEARCH)) {
+                int fromId = msg.getFromId();
+                processSearchMsg(fromId);
+                updateProcessedMsgNo();
+            } else if (msg.getAction().equals(MsgAction.ACCEPT)) {
+                int fromId = msg.getFromId();
+                children.put(fromId, neighbors.get(fromId));
+                updateReplyMsgNo();
+
+            } else if (msg.getAction().equals(MsgAction.REJECT)) {
+                updateReplyMsgNo();
+
+            } else if (msg.getAction().equals(MsgAction.EMPTY)) {
+                updateProcessedMsgNo();
+
+            } else if (msg.getAction().equals(MsgAction.DEGREE)) {
+                int d = this.getChildren().size() + (this.getParent() == this.getId() ? 0 : 1);
+                this.maxDegree = Math.max(d, Math.max(this.maxDegree, Integer.parseInt(msg.getContent().trim())));
+                updateChildrenMsgNo();
             }
         } catch (Exception e) {
             StringWriter sw = new StringWriter();
@@ -111,9 +140,10 @@ public class Node {
     }
 
     public void leaderElected(Msg msg) {
-        if (getNodeState() == state.ELECTLEADER) {
-            Logger.Debug("Leader %s Recieved", msg.getSrcId());
-            setNodeState(state.HOLD);
+        if (getState() == NodeState.ELECTED) {
+            Logger.Debug("Leader %s Received", msg.getSrcId());
+            setState(NodeState.IDLE);
+            setIsLeader(false);
             transferMsg(msg);
         }
     }
@@ -139,25 +169,28 @@ public class Node {
             setDistanceOfLargestUID(getReceivedDistanceOfLargestUID());
         } else if (getUnchangedRound() == 0) {
             setUnchangedRound(1);
-        } else if (getPelegStatus() == leaderElectStatus.UNKNOWN){
+        } else if (getState() == NodeState.ELECTING) {
             determineLeader();
         }
     }
 
     public void determineLeader() {
         if (id == getLargestUID()) {
-            setPelegStatus(leaderElectStatus.ISLEADER);
+            setState(NodeState.IDLE);
+            setIsLeader(true);
             broadcastLeader();
         } else {
-            setPelegStatus(leaderElectStatus.ISNOTLEADER);
+            setState(NodeState.ELECTED);
+            setIsLeader(false);
         }
-        Logger.Debug("leader election result: %s", getPelegStatus());
+        Logger.Debug("leader election result: %s", getIsLeader());
     }
 
     public void broadcastLeader() {
-        setNodeState(state.HOLD);
-        String msgContent = "LEADER";
-        sendElectMsg(msgContent);
+        Msg electMsg = MsgFactory.electMsg(this);
+        Logger.Debug("Leader MSG: %s", electMsg.getRound());
+        electMsg.setContent("LEADER");
+        broadcastMsg(electMsg);
     }
 
     public void transferMsg(Msg msg) {
@@ -183,20 +216,18 @@ public class Node {
     }
 
     public void leaderElectInit() {
-        this.nodeState = state.ELECTLEADER;
+        this.state = NodeState.ELECTING;
         this.round = 0;
         this.largestUID = id;
         this.receivedLargestUID = id;
         this.distanceOfLargestUID = 0;
         this.receivedDistanceOfLargestUID = 0;
-        this.pelegStatus = leaderElectStatus.UNKNOWN;
         this.unchangedRound = 0;
         this.processedMsgNo = 0;
     }
 
-    public void sendElectMsg(String str) {
+    public void sendElectMsg() {
         Msg electMsg = MsgFactory.electMsg(this);
-        electMsg.setContent(str);
         Logger.Debug("Send MSG: %s", electMsg.getRound());
         broadcastMsg(electMsg);
     }
@@ -207,46 +238,88 @@ public class Node {
         broadcastMsg(testMsg);
     }
 
+    public void buildTreeInit() {
+        this.state = NodeState.IDLE;
+        this.round = 0;
+        this.maxDegree = 0;
+        this.parent = -1;
+        this.processedMsgNo = 0;
+        this.childrenMsgNo = 0;
+        this.replyMsgNo = 0;
+    }
+
+    public void sendSearchMsg() {
+        Msg msg = MsgFactory.searchMsg(this);
+        broadcastMsg(msg);
+    }
+
+    public void sendAcceptMsg(int to) {
+        Msg msg = MsgFactory.acceptMsg(this);
+        msg.setToId(to);
+        msgService.sendMsg(msg);
+    }
+
+    public void sendRejectMsg(int to) {
+        Msg msg = MsgFactory.rejectMsg(this);
+        msg.setToId(to);
+        msgService.sendMsg(msg);
+    }
+
+    public void sendEmptyMsg() {
+        Msg msg = MsgFactory.emptyMsg(this);
+        broadcastMsg(msg);
+    }
+
+    public void sendDegreeMsg() {
+        Msg msg = MsgFactory.degreeMsg(this);
+        msg.setToId(this.parent);
+        msg.setContent(String.valueOf(Math.max(this.children.size() + 1, this.maxDegree)));
+        msgService.sendMsg(msg);
+    }
+
     public void checkBuffer() {
-        (new Thread() {
-            @Override
-            public void run(){
-                while (true) {
-                    while (!bufferedMsg.isEmpty()) {
-                        synchronized(bufferedMsg){
-                            for (Msg m : bufferedMsg) {
-                                if (m.getRound() == getRound()){
-                                    processMsg(m);
-                                    bufferedMsg.remove(m);
-                                    break;
-                                }
+        Runnable task = () -> {
+            while (true) {
+                while (!bufferedMsg.isEmpty()) {
+                    synchronized (bufferedMsg) {
+                        for (Msg m : bufferedMsg) {
+                            if (m.getRound() == getRound()) {
+                                processMsg(m);
+                                bufferedMsg.remove(m);
+                                break;
                             }
                         }
                     }
                 }
             }
-        }).start();
+        };
+        new Thread(task).start();
     }
 
     public void emptyMsgBuffer() {
-        synchronized(bufferedMsg){
-            bufferedMsg.clear();
+        synchronized (bufferedMsg) {
+            for (Msg m : bufferedMsg) {
+                if (!m.getAction().equals(MsgAction.SEARCH)) {
+                    bufferedMsg.remove(m);
+                }
+            }
         }
     }
 
     public void addMsgToBuffer(Msg msg) {
-        synchronized(bufferedMsg) {
+        synchronized (bufferedMsg) {
             bufferedMsg.add(msg);
         }
     }
 
     public void printMsgInBuffer() {
-        synchronized(bufferedMsg) {
+        synchronized (bufferedMsg) {
             for (Msg m : bufferedMsg) {
                 Logger.Debug("Buffered Msg: %s", m.toString());
             }
         }
     }
+
     public int getId() {
         return id;
     }
@@ -263,15 +336,44 @@ public class Node {
         return round;
     }
 
+    public int getParent() {
+        return parent;
+    }
+
+    public void setParent(int p) {
+        parent = p;
+    }
+
+    public int getMaxDegree() {
+        return maxDegree;
+    }
+
+    public int getChildrenMsgNo() {
+        return childrenMsgNo;
+    }
+
+    public synchronized void updateReplyMsgNo() {
+        this.replyMsgNo = this.replyMsgNo + 1;
+
+        if (this.replyMsgNo == this.neighbors.size()) {
+            setState(NodeState.CONVERGING);
+        }
+    }
+
     public void setRound(int r) {
         this.round = r;
     }
+
     public void updateRound() {
         this.round = this.round + 1;
     }
 
     public HashMap<Integer, Node> getNeighbors() {
         return neighbors;
+    }
+
+    public HashMap<Integer, Node> getChildren() {
+        return children;
     }
 
     public void addNeighbor(int id, String host, int port) {
@@ -284,14 +386,6 @@ public class Node {
 
     public synchronized void updateProcessedMsgNo() {
         this.processedMsgNo = this.processedMsgNo + 1;
-    }
-
-    public leaderElectStatus getPelegStatus() {
-        return this.pelegStatus;
-    }
-
-    public synchronized void setPelegStatus(leaderElectStatus status) {
-        this.pelegStatus = status;
     }
 
     public synchronized int getLargestUID() {
@@ -334,11 +428,33 @@ public class Node {
         this.unchangedRound = r;
     }
 
-    public synchronized state getNodeState() {
-        return this.nodeState;
+    public synchronized NodeState getState() {
+        return this.state;
     }
 
-    public synchronized void setNodeState(state s) {
-        this.nodeState = s;
+    public synchronized void setState(NodeState s) {
+        this.state = s;
+    }
+
+    public synchronized boolean getIsLeader() {
+        return this.isLeader;
+    }
+
+    public synchronized void setIsLeader(boolean s) {
+        this.isLeader = s;
+    }
+
+    public synchronized void updateChildrenMsgNo() {
+        this.childrenMsgNo = this.childrenMsgNo + 1;
+    }
+
+    public synchronized void processSearchMsg(int pId) {
+        if (getState() == NodeState.IDLE) {
+            setState(NodeState.SEARCHING);
+            setParent(pId);
+            sendAcceptMsg(pId);
+        } else {
+            sendRejectMsg(pId);
+        }
     }
 }
