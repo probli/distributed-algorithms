@@ -5,7 +5,7 @@ import java.util.HashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 enum NodeState {
-    ELECTING, ELECTED, IDLE, SEARCHING, WAITING, CONVERGING, DONE
+    ELECTING, ELECTED, IDLE, SEARCHING, WAITING, CONVERGING, CONVERGED, DONE
 }
 
 public class Node {
@@ -53,12 +53,22 @@ public class Node {
         connectNeighbors();
         Logger.Info("Connected to All neighbors....");
 
-        checkBuffer();
+
 
         while (!msgService.isInChannelsReady()) {
-            Logger.Info("Waiting for in Channels ready....");
+            StringBuilder sb = new StringBuilder("Current InChannels: ");
+            for(int id : msgService.channels.keySet()) {
+                MsgChannel ch = msgService.channels.getOrDefault(id, null);
+                if(ch != null && ch.hasInChannel()) {
+                    sb.append(id + ", ");
+                }
+            }
+            Logger.Info(sb.toString());
             Thread.sleep(1000);
         }
+
+        checkBuffer();
+
         waitForMessage();
         Logger.Info("Ready for messaging....");
     }
@@ -130,6 +140,9 @@ public class Node {
                 int d = this.getChildren().size() + (this.getParent() == this.getId() ? 0 : 1);
                 this.maxDegree = Math.max(d, Math.max(this.maxDegree, Integer.parseInt(msg.getContent().trim())));
                 updateChildrenMsgNo();
+            } else if(msg.getAction().equals(MsgAction.END)) {
+                broadcastToChildren(msg);
+                setState(NodeState.DONE);
             }
         } catch (Exception e) {
             StringWriter sw = new StringWriter();
@@ -141,7 +154,7 @@ public class Node {
 
     public void leaderElected(Msg msg) {
         if (getState() == NodeState.ELECTED) {
-            Logger.Debug("Leader %s Received", msg.getSrcId());
+            Logger.Info("Leader %s Received", msg.getSrcId());
             setState(NodeState.IDLE);
             setIsLeader(false);
             transferMsg(msg);
@@ -183,7 +196,7 @@ public class Node {
             setState(NodeState.ELECTED);
             setIsLeader(false);
         }
-        Logger.Debug("leader election result: %s", getIsLeader());
+        Logger.Info("leader election result: %s", getIsLeader());
     }
 
     public void broadcastLeader() {
@@ -206,6 +219,13 @@ public class Node {
 
     public void broadcastMsg(Msg msg) {
         for (Node node : neighbors.values()) {
+            msg.setToId(node.getId());
+            msgService.sendMsg(msg);
+        }
+    }
+
+    public void broadcastToChildren(Msg msg) {
+        for (Node node : children.values()) {
             msg.setToId(node.getId());
             msgService.sendMsg(msg);
         }
@@ -275,6 +295,11 @@ public class Node {
         msg.setToId(this.parent);
         msg.setContent(String.valueOf(Math.max(this.children.size() + 1, this.maxDegree)));
         msgService.sendMsg(msg);
+    }
+
+    public void sendEndMsg() {
+        Msg msg = MsgFactory.endMsg(this);
+        broadcastMsg(msg);
     }
 
     public void checkBuffer() {
@@ -433,6 +458,7 @@ public class Node {
     }
 
     public synchronized void setState(NodeState s) {
+        Logger.Debug(this.state + " --- > " + s);
         this.state = s;
     }
 

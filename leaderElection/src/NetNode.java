@@ -74,7 +74,7 @@ public class NetNode {
                         }
                         nodes.put(t[0], line);
                     } else if (lineNum > nodeNum) {
-                        if (!readLine.startsWith(String.valueOf(nodeId))) {
+                        if(!t[0].equals(String.valueOf(nodeId))) {
                             continue;
                         }
                         String nodeInfo = nodes.get(nodeId);
@@ -88,6 +88,7 @@ public class NetNode {
                             String[] s2 = nodes.get(t[i]).trim().split("\\s+");
                             node.addNeighbor(Integer.parseInt(s2[0]), s2[1].trim(), Integer.parseInt(s2[2]));
                         }
+                        break;
                     }
                 }
             }
@@ -145,37 +146,41 @@ public class NetNode {
         node.buildTreeInit();
 
 
+        //every node is in idle state now
         if (node.getIsLeader()) {
             node.setState(NodeState.SEARCHING);
             node.setParent(node.getId());
         }
 
-        while (node.getState() != NodeState.CONVERGING) {
-            if (node.getRound() == 0 || node.getProcessedMsgNo() == node.getNeighbors().size() * node.getRound()) {
+        while (node.getState() != NodeState.DONE) {
+            if (node.getProcessedMsgNo() == node.getNeighbors().size() * node.getRound()) {
                 node.updateRound();
 
                 if (node.getState() == NodeState.SEARCHING) {
-                    node.sendSearchMsg();
                     node.setState(NodeState.WAITING);
+                    node.sendSearchMsg();
                 } else {
                     node.sendEmptyMsg();
                 }
             }
-        }
 
-        while (node.getState() == NodeState.CONVERGING) {
-            if (node.getChildrenMsgNo() >= node.getChildren().size()) {
-                if (!node.getIsLeader()) {
-                    node.sendDegreeMsg();
-                }
-                node.setState(NodeState.DONE);
-            }
+           if(node.getState() == NodeState.CONVERGING) {
+               if(node.getChildrenMsgNo() == node.getChildren().size()) {
+                   if (!node.getIsLeader()) {
+                       node.setState(NodeState.CONVERGED);
+                       node.sendDegreeMsg();
+                   } else {
+                       node.setState(NodeState.DONE);
+                       node.sendEndMsg();
+                   }
+               }
+           }
         }
 
         Logger.Debug("ConvergeCast is completed");
 
 
-        Logger.Debug("P: %s ---> %s", node.getParent() == node.getId() ? " null" : node.getParent(), node.getId());
+        Logger.Info("P: %s ---> %s", node.getParent() == node.getId() ? " null" : node.getParent(), node.getId());
 
 
         StringBuilder sb = new StringBuilder();
@@ -184,10 +189,10 @@ public class NetNode {
             sb.append(", ");
         }
 
-        Logger.Debug("Node %s : {%s}", node.getId(), sb.toString());
+        Logger.Info("Node %s : {%s}", node.getId(), sb.toString());
 
         if (node.getIsLeader()) {
-            Logger.Debug("Tree max degree is: %s", node.getMaxDegree());
+            Logger.Info("----------------------------------  Tree max degree is: %s", node.getMaxDegree());
         }
 
     }
