@@ -20,7 +20,7 @@ public class MsgFactory {
         msg.setSrcId(localNodeId);
         msg.setFromId(localNodeId);
         msg.setToId(toId);
-        msg.setRound(0);
+        msg.setRound(-1);
         return msg;
     }
 
@@ -30,7 +30,7 @@ public class MsgFactory {
         msg.setSrcId(localNodeId);
         msg.setFromId(localNodeId);
         msg.setToId(toId);
-        msg.setRound(0);
+        msg.setRound(-1);
         return msg;
     }
 
@@ -39,44 +39,29 @@ public class MsgFactory {
         msg.setAction(MsgAction.ELECTLEADER);
         msg.setSrcId(node.getId());
         msg.setFromId(node.getId());
-        msg.setRound(node.getRound());
+        msg.setRound(node.getRound() + 1);
         msg.setContent(node.getLargestUID() + "," + node.getDistanceOfLargestUID());
         return msg;
     }
 
-    public static Msg searchMsg(Node node) {
+    public static Msg replyMsg(Node node, String s, int to) {
         Msg msg = new Msg();
-        msg.setAction(MsgAction.SEARCH);
+        msg.setAction(MsgAction.REPLY);
         msg.setSrcId(node.getId());
         msg.setFromId(node.getId());
-        msg.setRound(node.getRound());
+        msg.setToId(to);
+        msg.setRound(-1);
+        msg.setContent(s);
         return msg;
     }
 
-    public static Msg acceptMsg(Node node) {
+    public static Msg buildMsg(Node node, String s) {
         Msg msg = new Msg();
-        msg.setAction(MsgAction.ACCEPT);
+        msg.setAction(MsgAction.BUILD);
         msg.setSrcId(node.getId());
         msg.setFromId(node.getId());
-        msg.setRound(0);
-        return msg;
-    }
-
-    public static Msg rejectMsg(Node node) {
-        Msg msg = new Msg();
-        msg.setAction(MsgAction.REJECT);
-        msg.setSrcId(node.getId());
-        msg.setFromId(node.getId());
-        msg.setRound(0);
-        return msg;
-    }
-
-    public static Msg emptyMsg(Node node) {
-        Msg msg = new Msg();
-        msg.setAction(MsgAction.EMPTY);
-        msg.setSrcId(node.getId());
-        msg.setFromId(node.getId());
-        msg.setRound(node.getRound());
+        msg.setRound(node.getRound() + 1);
+        msg.setContent(s);
         return msg;
     }
 
@@ -85,7 +70,7 @@ public class MsgFactory {
         msg.setAction(MsgAction.DEGREE);
         msg.setSrcId(node.getId());
         msg.setFromId(node.getId());
-        msg.setRound(0);
+        msg.setRound(-1);
         return msg;
     }
 
@@ -94,7 +79,7 @@ public class MsgFactory {
         msg.setAction(MsgAction.END);
         msg.setSrcId(node.getId());
         msg.setFromId(node.getId());
-        msg.setRound(0);
+        msg.setRound(-1);
         return msg;
     }
 }
