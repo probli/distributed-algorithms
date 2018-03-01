@@ -145,12 +145,10 @@ public class Node {
                 updateChildrenMsgNo();
                 checkConverge();
            } else if (msg.getAction().equals(MsgAction.END)) {
-                Logger.Debug(String.format("[Processing] %s | s: %d, f: %d, t: %d, r: %d, c: %s", msg.getAction(), msg.getSrcId(), msg.getFromId(), msg.getToId(), msg.getRound(), msg.getContent()));
                 broadcastToChildren(msg);
                 setBuildTreeState(BuildTreeState.DONE);
             } else {
-                Logger.Debug(String.format("[!!!!Lost!!!!] %s | s: %d, f: %d, t: %d, r: %d, c: %s", msg.getAction(), msg.getSrcId(), msg.getFromId(), msg.getToId(), msg.getRound(), msg.getContent()));
-                Logger.Debug("Current state %s", getNodeState());
+                Logger.Debug(String.format("[!!!!Lost!!!!] %s | s: %d, f: %d, t: %d, r: %d, c: %s, STATE: %s", msg.getAction(), msg.getSrcId(), msg.getFromId(), msg.getToId(), msg.getRound(), msg.getContent(), getNodeState()));
             }
         } catch (Exception e) {
             StringWriter sw = new StringWriter();
@@ -162,11 +160,9 @@ public class Node {
 
     public void leaderElected(Msg msg) {
         if (getNodeState() == NodeState.ELECT) {
-            Logger.Info("Leader %s Received", msg.getSrcId());
             if (getNodeState() == NodeState.ELECT) {
                 setNodeState(NodeState.IDLE);
             }
-            setElectState(ElectState.ISNOTLEADER);
             transferMsg(msg);
         }
     }
@@ -185,7 +181,6 @@ public class Node {
     }
 
     public void checkKnowledge() {
-        Logger.Debug("Round %s finished", getRound());
         if (getReceivedDistanceOfLargestUID() != getDistanceOfLargestUID() || getReceivedLargestUID() != getLargestUID()) {
             setUnchangedRound(0);
             setLargestUID(getReceivedLargestUID());
@@ -258,7 +253,6 @@ public class Node {
 
     public void sendElectMsg() {
         Msg electMsg = MsgFactory.electMsg(this);
-        Logger.Debug("Send MSG: %s", electMsg.getRound());
         broadcastMsg(electMsg);
     }
 
@@ -504,7 +498,7 @@ public class Node {
     }
 
     public synchronized void setNodeState(NodeState s) {
-        Logger.Debug(this.nodeState + " --- > " + s);
+        Logger.Info("Round %s : %s ----> %s", getRound(),this.nodeState, s);
         this.nodeState = s;
     }
     
@@ -513,7 +507,7 @@ public class Node {
     }
 
     public synchronized void setElectState(ElectState es) {
-        Logger.Debug(this.electState + " --- > " + es);
+        Logger.Info("Round %s : %s ----> %s", getRound(), this.electState, es);
         this.electState = es;
     }
     
@@ -522,7 +516,7 @@ public class Node {
     }
 
     public synchronized void setBuildTreeState(BuildTreeState bts) {
-        Logger.Debug(this.buildTreeState + " --- > " + bts);
+        Logger.Info("Round %s : %s ----> %s", getRound(), this.buildTreeState, bts);
         this.buildTreeState = bts;
     }
 

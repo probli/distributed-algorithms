@@ -148,7 +148,7 @@ public class NetNode {
             if (node.getProcessedMsgNoElect() == roundMsgNumber * node.getRound()) {
                 node.sendElectMsg();
                 node.updateRound();
-                Logger.Debug("Round: %s, UID: %s, Dis: %s", node.getRound(), node.getLargestUID(), node.getDistanceOfLargestUID());
+                Logger.Info("Round: %s, UID: %s, Dis: %s", node.getRound(), node.getLargestUID(), node.getDistanceOfLargestUID());
             }
         }
     }
