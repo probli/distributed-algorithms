@@ -23,24 +23,29 @@ public class NetNode {
             Logger.Info("Connecting Node: %s", tmp);
 
             // only enable when debugging connections
-            //testMode(node);
+            // testMode(node);
 
+            Logger.Info("Begin to elect leader.");
             electLeader(node);
-            Logger.Debug("Leader election finished. The result is: %s", node.getIsLeader());
+            Logger.Info("Leader election finished. The result is: %s", node.getElectState());
 
-            node.setRound(0);
-            node.buildTreeInit();
-            node.emptyMsgBuffer();
+            Logger.Info("Begin to create BFS tree.");
+            buildTree(node);
+            Logger.Info("BFS tree building finished.");
+            
+            Logger.Info("P: %s ---> %s", node.getParent() == node.getId() ? " null" : node.getParent(), node.getId());
 
-            int count = 5;
-            while (count > 0) {
-                Logger.Info("%d seconds to start.", count);
-                Thread.sleep(1000);
-                count--;
+            StringBuilder sb = new StringBuilder();
+            for (int key : node.getChildren().keySet()) {
+                sb.append(key);
+                sb.append(", ");
             }
 
-            Logger.Debug("Begin to create BFS tree.");
-            buildTree(node);
+            Logger.Info("Node %s : {%s}", node.getId(), sb.toString());
+
+            if (node.getElectState() == ElectState.ISLEADER) {
+                Logger.Info("----------------------------------  Tree max degree is: %s", node.getMaxDegree());
+            }
 
         } catch (Exception e) {
             StringWriter sw = new StringWriter();
@@ -105,95 +110,64 @@ public class NetNode {
 
         Logger.Info("Send Msg or Press [d/D] to disconnect by NodeId.");
 
-        try {
-            while (true) {
-                BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
-                String msg = reader.readLine();
-                if (msg == null || msg.isEmpty()) {
-                    continue;
+        Runnable task = ()->{
+            try {
+                while (true) {
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+                    String msg = reader.readLine();
+                    if (msg == null || msg.isEmpty()) {
+                        continue;
+                    }
+                    if (msg.equalsIgnoreCase("D")) {
+                        Logger.Info("Input nodeId:");
+                        String ss = reader.readLine();
+                        if (ss == null || ss.isEmpty()) continue;
+                        node.disconnect(Integer.parseInt(ss));
+                    } else if (msg.equalsIgnoreCase("P")){
+                        node.printMsgInBuffer();
+                    } else if (msg.equalsIgnoreCase("R")){
+                        Logger.Info("MsfNo: %s, R: %s, Size: %s", node.getProcessedMsgNoBuild(), node.getRound(), node.getNeighbors().size());
+                    } else {
+                        node.sendTestMsg(msg);
+                    }
                 }
-                if (msg.equalsIgnoreCase("D")) {
-                    Logger.Info("Input nodeId:");
-                    String ss = reader.readLine();
-                    if (ss == null || ss.isEmpty()) continue;
-                    node.disconnect(Integer.parseInt(ss));
-                } else {
-                    node.sendTestMsg(msg);
-                }
+            } catch(Exception e) {
+                StringWriter sw = new StringWriter();
+                PrintWriter pw = new PrintWriter(sw);
+                e.printStackTrace(pw);
+                Logger.Error(sw.toString());
             }
-        } catch (Exception e) {
-            StringWriter sw = new StringWriter();
-            PrintWriter pw = new PrintWriter(sw);
-            e.printStackTrace(pw);
-            Logger.Error(sw.toString());
-        }
-
+        };
+        new Thread(task).start();
     }
 
     public static void electLeader(Node node) {
         node.leaderElectInit();
         int roundMsgNumber = node.getNeighbors().size();
-        while (node.getState() != NodeState.IDLE) {
-            if (node.getProcessedMsgNo() == roundMsgNumber * node.getRound()) {
-                node.updateRound();
+        while (node.getNodeState() == NodeState.ELECT) {
+            if (node.getProcessedMsgNoElect() == roundMsgNumber * node.getRound()) {
                 node.sendElectMsg();
-                Logger.Debug("Round: %s, UID: %s, Dis: %s", node.getRound(), node.getLargestUID(), node.getDistanceOfLargestUID());
+                node.updateRound();
+                Logger.Info("Round: %s, UID: %s, Dis: %s", node.getRound(), node.getLargestUID(), node.getDistanceOfLargestUID());
             }
         }
     }
 
     public static void buildTree(Node node) {
         node.buildTreeInit();
+        node.markLeader();
 
-
-        //every node is in idle state now
-        if (node.getIsLeader()) {
-            node.setState(NodeState.SEARCHING);
-            node.setParent(node.getId());
-        }
-
-        while (node.getState() != NodeState.DONE) {
-            if (node.getProcessedMsgNo() == node.getNeighbors().size() * node.getRound()) {
-                node.updateRound();
-
-                if (node.getState() == NodeState.SEARCHING) {
-                    node.setState(NodeState.WAITING);
+        int roundMsgNumber = node.getNeighbors().size();
+        while (node.getBuildTreeState() != BuildTreeState.DONE) {
+            if (node.getProcessedMsgNoBuild() == roundMsgNumber * node.getRound()) {
+                if (node.getBuildTreeState() == BuildTreeState.MARKED) {
                     node.sendSearchMsg();
+                    node.setBuildTreeState(BuildTreeState.WAITING);
                 } else {
                     node.sendEmptyMsg();
                 }
+                node.updateRound();
             }
-
-           if(node.getState() == NodeState.CONVERGING) {
-               if(node.getChildrenMsgNo() == node.getChildren().size()) {
-                   if (!node.getIsLeader()) {
-                       node.setState(NodeState.CONVERGED);
-                       node.sendDegreeMsg();
-                   } else {
-                       node.setState(NodeState.DONE);
-                       node.sendEndMsg();
-                   }
-               }
-           }
         }
-
-        Logger.Debug("ConvergeCast is completed");
-
-
-        Logger.Info("P: %s ---> %s", node.getParent() == node.getId() ? " null" : node.getParent(), node.getId());
-
-
-        StringBuilder sb = new StringBuilder();
-        for (int key : node.getChildren().keySet()) {
-            sb.append(key);
-            sb.append(", ");
-        }
-
-        Logger.Info("Node %s : {%s}", node.getId(), sb.toString());
-
-        if (node.getIsLeader()) {
-            Logger.Info("----------------------------------  Tree max degree is: %s", node.getMaxDegree());
-        }
-
     }
 }
