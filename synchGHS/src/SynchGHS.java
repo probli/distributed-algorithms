@@ -1,5 +1,5 @@
 import java.io.*;
-import java.util.HashMap;
+import java.util.*;
 
 public class SynchGHS {
 
@@ -19,10 +19,21 @@ public class SynchGHS {
             }
             Logger.Info("Connecting Node: %s", tmp);
 
-            while (true) {
+            buildMST(node);
 
+            Thread.sleep(5000);
+            Logger.Info("Finish");
+            node.updateTree();
+            // PriorityQueue<Edge> pq = node.getEdges();
+            // while (!pq.isEmpty()) {
+            //     Edge edge = pq.poll();
+            //     Logger.Debug("Endpoint1: %s, Endpoint2: %s Weight: %s", edge.endpoint1, edge.endpoint2, edge.weight);
+            // }
+
+            List<Edge> edgeList = node.getTreeEdges();
+            for (Edge edge : edgeList) {
+                Logger.Info("Endpoint1: %s, Endpoint2: %s Weight: %s", edge.endpoint1, edge.endpoint2, edge.weight);
             }
-
         } catch (Exception e) {
             StringWriter sw = new StringWriter();
             PrintWriter pw = new PrintWriter(sw);
@@ -77,6 +88,7 @@ public class SynchGHS {
                         int nPort = Integer.parseInt(nbInfo[2]);
                         int weight = Integer.parseInt(t[1].trim());
 
+                        node.setN(nodeNum);
                         node.addNeighbor(nId, nHost, nPort, weight);
                     }
                 }
@@ -87,5 +99,18 @@ public class SynchGHS {
 
     private static boolean isValidLine(String line) {
         return line.length() > 0 && (Character.isDigit(line.charAt(0)) || line.charAt(0) == '(');
+    }
+
+    public static void buildMST(Node node) {
+        node.initBuildMST();
+
+        // while (node.getNodeState() != NodeState.TERMINATE) {
+            node.searchMWOE();
+            node.selectLocalMWOE();
+            node.convergeLocalMWOE();
+            node.mergeMWOE();
+        // }
+
+
     }
 }
