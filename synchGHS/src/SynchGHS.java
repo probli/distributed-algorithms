@@ -21,7 +21,6 @@ public class SynchGHS {
 
             buildMST(node);
 
-            Thread.sleep(5000);
             Logger.Info("Finish");
             node.updateTree();
             // PriorityQueue<Edge> pq = node.getEdges();

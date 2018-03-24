@@ -3,7 +3,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 enum NodeState {
-    IDLE, SEARCH, TEST, CONVERGE, MERGE, TERMINATE
+    IDLE, SEARCH, TEST, CONVERGE, MERGE, JOIN, TERMINATE
 }
 
 public class Node {
@@ -94,7 +94,7 @@ public class Node {
                 while (!bufferedMsg.isEmpty()) {
                     synchronized (bufferedMsg) {
                         for (Msg m : bufferedMsg) {
-                            if (m.getRound() == getRound()) {
+                            if (m.getRound() == getRound() || m.getRound() == -1) {
                                 processMsg(m);
                                 bufferedMsg.remove(m);
                                 break;
@@ -157,6 +157,11 @@ public class Node {
 
                 updateProcessedMsgNo();
             } else if (msg.getAction().equals(MsgAction.JOIN)) {
+                if (nodeState != NodeState.JOIN) {
+                    addMsgToBuffer(msg);
+                    return;
+                }
+
                 int fromId = msg.getFromId();
                 String content = msg.getContent();
                 processJoinMsg(fromId, content);
@@ -487,6 +492,8 @@ public class Node {
                 updateRound();
             }
         }
+
+        setNodeState(NodeState.JOIN);
 
         if (hasGlobalMWOE) {
             join();
