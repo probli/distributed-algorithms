@@ -4,6 +4,7 @@ public class Msg {
     private int fromId;
     private int toId;
     private int round;
+    private int componentLevel;
     private String content = "";
 
     public Msg(String str) {
@@ -13,7 +14,8 @@ public class Msg {
         this.fromId = Integer.parseInt(token[2]);
         this.toId = Integer.parseInt(token[3]);
         this.round = Integer.parseInt(token[4]);
-        this.content = token.length < 6 ? "" : token[5];
+        this.componentLevel = Integer.parseInt(token[5]);
+        this.content = token.length < 7 ? "" : token[6];
     }
 
     public Msg() {
@@ -59,6 +61,14 @@ public class Msg {
         round = v;
     }
 
+    public int getComponentLevel() {
+        return componentLevel;
+    }
+
+    public void setComponentLevel(int c) {
+        componentLevel = c;
+    }
+
     public String getContent() {
         return content;
     }
@@ -69,11 +79,12 @@ public class Msg {
 
     @Override
     public String toString() {
-        return String.format("%s|%d|%d|%d|%d|%s", this.action, this.srcId, this.fromId, this.toId, this.round, this.content);
+        return String.format("%s|%d|%d|%d|%d|%d|%s", this.action, this.srcId, this.fromId, this.toId, this.round,
+                this.componentLevel, this.content);
     }
 
-
     public String printFormat() {
-        return String.format("%s | s: %d, f: %d, t: %d, r: %d, c: %s", this.action, this.srcId, this.fromId, this.toId, this.round, this.content);
+        return String.format("%s | s: %d, f: %d, t: %d, r: %d, cl: %d, c: %s", this.action, this.srcId, this.fromId,
+                this.toId, this.round, this.componentLevel, this.content);
     }
 }

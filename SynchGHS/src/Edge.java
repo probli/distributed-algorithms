@@ -24,7 +24,6 @@ public class Edge implements Comparable<Edge> {
 
     @Override
     public String toString() {
-        if (this == null) return "null";
         return this.endpoint1 + "," + this.endpoint2 + "," + this.weight;
     }
 }

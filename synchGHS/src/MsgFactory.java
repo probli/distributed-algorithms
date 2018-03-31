@@ -1,5 +1,6 @@
 public class MsgFactory {
     private static int localNodeId = 0;
+
     public static void setLocalNodeId(int id) {
         localNodeId = id;
     }
@@ -11,6 +12,7 @@ public class MsgFactory {
         msg.setFromId(localNodeId);
         msg.setToId(toId);
         msg.setRound(-1);
+        msg.setComponentLevel(-1);
         return msg;
     }
 
@@ -21,6 +23,7 @@ public class MsgFactory {
         msg.setFromId(localNodeId);
         msg.setToId(toId);
         msg.setRound(-1);
+        msg.setComponentLevel(-1);
         return msg;
     }
 
@@ -31,10 +34,11 @@ public class MsgFactory {
         msg.setSrcId(node.getComponentId());
         msg.setFromId(node.getId());
         msg.setRound(node.getRound());
+        msg.setComponentLevel(node.getComponentLevel());
         return msg;
     }
 
-    public static Msg testMsg(int toId, String content) {
+    public static Msg testMsg(int toId, String content, int componentLevel) {
         Msg msg = new Msg();
         msg.setAction(MsgAction.TEST);
         msg.setContent(content);
@@ -42,10 +46,11 @@ public class MsgFactory {
         msg.setFromId(localNodeId);
         msg.setToId(toId);
         msg.setRound(-1);
+        msg.setComponentLevel(componentLevel);
         return msg;
     }
 
-    public static Msg replyMsg(int toId, String content) {
+    public static Msg replyMsg(int toId, String content, int componentLevel) {
         Msg msg = new Msg();
         msg.setAction(MsgAction.REPLY);
         msg.setContent(content);
@@ -53,6 +58,7 @@ public class MsgFactory {
         msg.setFromId(localNodeId);
         msg.setToId(toId);
         msg.setRound(-1);
+        msg.setComponentLevel(componentLevel);
         return msg;
     }
 
@@ -64,26 +70,30 @@ public class MsgFactory {
         msg.setFromId(node.getId());
         msg.setToId(toId);
         msg.setRound(node.getRound());
+        msg.setComponentLevel(node.getComponentLevel());
         return msg;
     }
 
     public static Msg mergeMsg(Node node, String content) {
         Msg msg = new Msg();
         msg.setAction(MsgAction.MERGE);
+        msg.setContent(content);
         msg.setSrcId(node.getComponentId());
         msg.setFromId(node.getId());
         msg.setRound(node.getRound());
+        msg.setComponentLevel(node.getComponentLevel());
         return msg;
     }
 
-    public static Msg joinMsg(int toId, String content) {
+    public static Msg joinMsg(Node node, int toId, String content) {
         Msg msg = new Msg();
         msg.setAction(MsgAction.JOIN);
         msg.setContent(content);
-        msg.setSrcId(localNodeId);
+        msg.setSrcId(node.getComponentId());
         msg.setFromId(localNodeId);
         msg.setToId(toId);
         msg.setRound(-1);
+        msg.setComponentLevel(node.getComponentLevel());
         return msg;
     }
 
@@ -93,6 +103,7 @@ public class MsgFactory {
         msg.setSrcId(node.getComponentId());
         msg.setFromId(node.getId());
         msg.setRound(-1);
+        msg.setComponentLevel(node.getComponentLevel());
         return msg;
     }
 }
