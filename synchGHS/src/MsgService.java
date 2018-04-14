@@ -53,7 +53,6 @@ public class MsgService {
             }
         }).start();
 
-
     }
 
     private void startInChannels() throws IOException {
@@ -107,18 +106,19 @@ public class MsgService {
 
     public void listenToChannels() {
         for (MsgChannel ch : channels.values()) {
-            if (!ch.isConnecting()) continue;
+            if (!ch.isConnecting())
+                continue;
             (new Thread() {
                 @Override
                 public void run() {
-                    try (
-                            BufferedReader in = ch.getInChannel()
-                    ) {
+                    try (BufferedReader in = ch.getInChannel()) {
                         while (ch.isConnecting()) {
                             String inputLine;
                             while ((inputLine = ch.getInChannel().readLine()) != null) {
                                 Msg msg = new Msg(inputLine);
-                                Logger.Debug(String.format("[RECEIVED] %s | s: %d, f: %d, t: %d, r: %d, c: %s", msg.getAction(), msg.getSrcId(), msg.getFromId(), msg.getToId(), msg.getRound(), msg.getContent()));
+                                Logger.Debug(String.format("[RECEIVED] %s | s: %d, f: %d, t: %d, r: %d, cl: %d, c: %s",
+                                        msg.getAction(), msg.getSrcId(), msg.getFromId(), msg.getToId(), msg.getRound(),
+                                        msg.getComponentLevel(), msg.getContent()));
                                 onReceiveMsg(msg);
                             }
                         }
@@ -142,7 +142,8 @@ public class MsgService {
     }
 
     private void onReceiveMsg(Msg msg) {
-        if (listeners.isEmpty()) return;
+        if (listeners.isEmpty())
+            return;
 
         for (MsgEventListener listener : listeners) {
             listener.onReceiveMsg(msg);
@@ -150,8 +151,9 @@ public class MsgService {
     }
 
     public void sendMsg(Msg msg) {
-        Logger.Debug(String.format("[SEND] %s | s: %d, f: %d, t: %d, r: %d, c: %s", msg.getAction(), msg.getSrcId(), msg.getFromId(), msg.getToId(), msg.getRound(), msg.getContent()));
-
+        Logger.Debug(
+                String.format("[SEND] %s | s: %d, f: %d, t: %d, r: %d, cl: %d, c: %s", msg.getAction(), msg.getSrcId(),
+                        msg.getFromId(), msg.getToId(), msg.getRound(), msg.getComponentLevel(), msg.getContent()));
         MsgChannel ch = channels.get(msg.getToId());
         ch.getOutChannel().println(msg.toString());
     }

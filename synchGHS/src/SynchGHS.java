@@ -22,7 +22,7 @@ public class SynchGHS {
             buildMST(node);
 
             Logger.Info("Finish");
-            node.updateTree();
+            //node.updateTree();
             // PriorityQueue<Edge> pq = node.getEdges();
             // while (!pq.isEmpty()) {
             //     Edge edge = pq.poll();
@@ -102,14 +102,21 @@ public class SynchGHS {
 
     public static void buildMST(Node node) {
         node.initBuildMST();
-
-        // while (node.getNodeState() != NodeState.TERMINATE) {
+        //int i = 0;
+        //while (i < 2) {
+        while (node.getNodeState() != NodeState.TERMINATE) {
+            //if (node.getNodeState() != NodeState.JOIN)
+            Logger.Debug("Begin a new component search");
             node.searchMWOE();
+            Logger.Debug("Search MWOE complete");
             node.selectLocalMWOE();
+            Logger.Debug("Select local MWOE complete");
             node.convergeLocalMWOE();
+            Logger.Debug("Converge local MWOE complete");
+            node.sendMerge();
             node.mergeMWOE();
-        // }
-
-
+        }
+        Logger.Debug("Finish to create MST");
+        Logger.Debug("Final component ID is %s", node.getComponentId());
     }
 }
