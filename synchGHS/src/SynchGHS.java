@@ -102,8 +102,7 @@ public class SynchGHS {
 
     public static void buildMST(Node node) {
         node.initBuildMST();
-        //int i = 0;
-        //while (i < 2) {
+        // while (i < 2) {
         while (node.getNodeState() != NodeState.TERMINATE) {
             //if (node.getNodeState() != NodeState.JOIN)
             Logger.Debug("Begin a new component search");
