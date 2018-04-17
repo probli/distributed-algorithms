@@ -503,7 +503,7 @@ public class Node {
     }
 
     public void searchMWOE() {
-        totalJoinMsg = this.neighbors.size() - this.treeNeighbors.size();
+        this.totalJoinMsg = this.neighbors.size() - this.treeNeighbors.size();
         checkComponentLeader(NodeState.SEARCH);
         int roundMsgNumber = this.treeEdges.size();
         while (this.getSearchRound() < N || (this.getSearchMsgNo() < roundMsgNumber * N)) {
