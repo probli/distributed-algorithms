@@ -588,6 +588,7 @@ public class Node {
     }
 
     public void sendMerge() {
+        if (this.nodeState == NodeState.TERMINATE) return;
         this.updateRound();
         initMergeState();
         Logger.Debug("Begin to merge, current MWOE is %s", this.MWOE);
