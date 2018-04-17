@@ -2,8 +2,6 @@ import java.io.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import sun.rmi.runtime.Log;
-
 enum NodeState {
     IDLE, SEARCH, TEST, CONVERGE, MERGE, JOIN, TERMINATE
 }
