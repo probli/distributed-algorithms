@@ -299,7 +299,6 @@ public class Node {
 
     private synchronized void processJoinMsg(int fromId, String content) {
         updateJoinMsgNo();
-        Logger.Debug("Current total join message size is %s", this.totalJoinMsg);
         if (this.joinMsgNo == 2 * this.totalJoinMsg) {
             setNodeState(NodeState.IDLE);
         }
@@ -315,7 +314,7 @@ public class Node {
         int res = compare(MWOE, mwoe);
         //Logger.Debug("%s", res);
         Logger.Debug("%s", hasGlobalMWOE);
-        if (hasGlobalMWOE && (res == 0 || MWOE == null)) {
+        if (hasGlobalMWOE && res == 0) {
             setNewComponentId(Math.max(ep1, ep2));
             Logger.Debug("new componet id:%s", getNewComponentId());
         } else {
@@ -609,10 +608,12 @@ public class Node {
                 if (this.nodeState == NodeState.MERGE) {
                     sendMergeMsg("MERGE");
                     setNodeState(NodeState.IDLE);
-                    // String[] edge = this.getMWOE().toString().split(",");
-                    // int ep1 = Integer.parseInt(edge[0]);
-                    // int ep2 = Integer.parseInt(edge[1]);
-                    // this.setNewComponentId(Math.max(ep1, ep2));
+                    String[] edge = this.getMWOE().toString().split(",");
+                    int ep1 = Integer.parseInt(edge[0]);
+                    int ep2 = Integer.parseInt(edge[1]);
+                    if (ep1 != this.getComponentId() && ep2 != this.getComponentId()) {
+                        this.setNewComponentId(Math.max(ep1, ep2));
+                    }
                 } else {
                     sendMergeMsg("EMPTY");
                 }
@@ -743,7 +744,6 @@ public class Node {
         Msg join;
         this.mergeRound = 0;
         this.mergeMsgNo = 0;
-        Logger.Debug("Current total join message size is %s", this.totalJoinMsg);
         for (int toId : neighbors.keySet()) {
             if (treeNeighbors.containsKey(toId))
                 continue;
