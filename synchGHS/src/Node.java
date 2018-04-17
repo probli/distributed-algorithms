@@ -684,8 +684,8 @@ public class Node {
         }
         this.newTreeEdges = new LinkedList<>();
         this.newTreeNeighbors = new HashMap<>();
-        Logger.Debug("Component level %s complete", this.getComponentLevel());
-        Logger.Debug("Current Component ID is %s", this.getComponentId());
+        Logger.Info("Component level %s complete", this.getComponentLevel());
+        Logger.Info("Current Component ID is %s", this.getComponentId());
     }
 
     private synchronized void sendSearchMsg(String content) {
