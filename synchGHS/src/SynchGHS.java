@@ -7,6 +7,8 @@ public class SynchGHS {
         try {
             String configPath = args.length > 0 ? args[0] : "../config.txt";
             String nodeId = args.length > 1 ? args[1] : "-1";
+            boolean debugMode = args.length > 2 ? args[2].equals("-d") : false;
+            Logger.setDebugMode(debugMode);
             Logger.setLocalNodeId(Integer.parseInt(nodeId));
             Logger.Info("Init node......");
 
@@ -67,7 +69,7 @@ public class SynchGHS {
                             node = new Node(Integer.parseInt(t[0]), t[1], Integer.parseInt(t[2]));
                         }
                     } else if (lineNum > nodeNum) {
-                        if (t[0].startsWith("(") && t[0].startsWith(")")) {
+                        if (!t[0].startsWith("(") || !t[0].endsWith(")")) {
                             throw new Exception(String.format("Invalid edge format: %s", readLine));
                         }
                         String[] points = t[0].substring(1, t[0].length() - 1).split(",");
@@ -102,20 +104,36 @@ public class SynchGHS {
 
     public static void buildMST(Node node) {
         node.initBuildMST();
-        // while (i < 2) {
+
         while (node.getNodeState() != NodeState.TERMINATE) {
-            //if (node.getNodeState() != NodeState.JOIN)
-            Logger.Debug("Begin a new component search");
+            Logger.Info("[Searching]Broadcasting search instruction.");
             node.searchMWOE();
-            Logger.Debug("Search MWOE complete");
+            Logger.Info("[Searching] Broadcasting Completed.");
+
+            Logger.Info("[Testing] Testing MWOE.");
             node.selectLocalMWOE();
-            Logger.Debug("Select local MWOE complete");
+            Logger.Info("[Testing] Finished.");
+
+            Logger.Info("[Converging] Start Converging MWOE.");
             node.convergeLocalMWOE();
-            Logger.Debug("Converge local MWOE complete");
+            Logger.Info("[Converging] Converging Completed.");
+
             node.sendMerge();
             node.mergeMWOE();
         }
-        Logger.Debug("Finish to create MST");
-        Logger.Debug("Final component ID is %s", node.getComponentId());
+        Logger.Info("MST Created!");
+        Logger.Info("[RESULT] Final component ID is %s", node.getComponentId());
+
+        StringBuilder sb = new StringBuilder();
+        for (Edge e: node.getTreeEdges()) {
+            if(sb.length() != 0) {
+                sb.append(", ");
+            }
+            int end = e.endpoint1 == node.getId()? e.endpoint2 : e.endpoint1;
+            sb.append(end);
+            sb.append(" - (" + e.weight + ")");
+        }
+
+        Logger.Info("[RESULT] Tree Edges %s : {%s}", node.getId(), sb.toString());
     }
 }

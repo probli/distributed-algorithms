@@ -5,9 +5,12 @@ import java.util.Date;
 public class Logger {
 
     private static int localNodeId = 0;
-
+    private static boolean isDebugging = false;
     public static void setLocalNodeId(int id) {
         localNodeId = id;
+    }
+    public static void setDebugMode(boolean d) {
+        isDebugging = d;
     }
 
     public static PrintStream outputStream = null;
@@ -46,6 +49,8 @@ public class Logger {
     }
 
     public static void Error(String log, Object... args) {
+        if(!isDebugging) return;
+
         try {
             if (args != null) {
                 log = String.format(log, args);
