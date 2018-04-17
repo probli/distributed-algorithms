@@ -449,6 +449,7 @@ public class Node {
     }
 
     public synchronized void updateComponentLevel() {
+        Logger.Debug("[Component Level] %s --> %s", this.componentLevel, this.componentLevel + 1);
         this.componentLevel = this.componentLevel + 1;
     }
 
@@ -757,9 +758,9 @@ public class Node {
             }
             msgService.sendMsg(join);
             updateJoinMsgNo();
-            if (this.getJoinMsgNo() == 2 * this.totalJoinMsg) {
-                setNodeState(NodeState.IDLE);
-            }
+        }
+        if (this.getJoinMsgNo() == 2 * this.totalJoinMsg) {
+            setNodeState(NodeState.IDLE);
         }
     }
 }
