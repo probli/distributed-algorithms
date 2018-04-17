@@ -49,8 +49,6 @@ public class Logger {
     }
 
     public static void Error(String log, Object... args) {
-        if(!isDebugging) return;
-
         try {
             if (args != null) {
                 log = String.format(log, args);
@@ -69,6 +67,8 @@ public class Logger {
     }
 
     public static void Debug(String log, Object... args) {
+        if(!isDebugging) return;
+
         try {
             if (args != null) {
                 log = String.format(log, args);
