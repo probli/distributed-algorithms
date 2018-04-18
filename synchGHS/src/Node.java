@@ -504,6 +504,7 @@ public class Node {
     }
 
     public void searchMWOE() {
+        if (this.nodeState == NodeState.TERMINATE) return;
         this.totalJoinMsg = this.neighbors.size() - this.treeNeighbors.size();
         checkComponentLeader(NodeState.SEARCH);
         int roundMsgNumber = this.treeEdges.size();
@@ -537,6 +538,7 @@ public class Node {
     }
 
     public void selectLocalMWOE() {
+        if (this.nodeState == NodeState.TERMINATE) return;
         initTestState();
         while (MWOE == null) {
             if (getNodeState() == NodeState.TEST) {
@@ -558,6 +560,7 @@ public class Node {
     }
 
     public void convergeLocalMWOE() {
+        if (this.nodeState == NodeState.TERMINATE)
         this.updateRound();
         initConvergeState();
         checkConverge();
@@ -749,6 +752,7 @@ public class Node {
                 continue;
             if (hasGlobalMWOE && toId == MWOE.endpoint1 + MWOE.endpoint2 - id) {
                 join = MsgFactory.joinMsg(this, toId, MWOE.toString());
+                Logger.Debug("Current new componentId is %s", getNewComponentId());
                 setNewComponentId(Math.max(this.getNewComponentId(), toId));
                 Logger.Debug("Current new componentId is %s", getNewComponentId());
                 //Logger.Debug("Send message to update tree neighbor");
