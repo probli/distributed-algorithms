@@ -274,8 +274,7 @@ public class Node {
             mwoe = new Edge(ep1, ep2, weight);
         }
         int res = compare(MWOE, mwoe);
-        //Logger.Debug("Curent MWOE is %s", MWOE);
-        //Logger.Debug("Curent mwoe is %s", mwoe);
+    
         if (res > 0) {
             setMWOE(mwoe);
             //Logger.Debug("After Curent MWOE is %s", MWOE);
@@ -313,8 +312,6 @@ public class Node {
         Edge mwoe = new Edge(ep1, ep2, weight);
 
         int res = compare(MWOE, mwoe);
-        //Logger.Debug("%s", res);
-        Logger.Debug("%s", hasGlobalMWOE);
         if (hasGlobalMWOE && res == 0) {
             setNewComponentId(Math.max(ep1, ep2));
             //Logger.Debug("new componet id:%s", getNewComponentId());
@@ -548,17 +545,7 @@ public class Node {
     public void selectLocalMWOE() {
         if (this.nodeState == NodeState.TERMINATE) return;
         initTestState();
-        // while (MWOE == null) {
-        //     if (getNodeState() == NodeState.TEST) {
-        //         if (this.edges.isEmpty()) {
-        //             break;
-        //         } else {
-        //             Edge mwoe = edges.peek();
-        //             sendTestMsg(mwoe);
-        //             setNodeState(NodeState.IDLE);
-        //         }
-        //     }
-        // }
+        
         while (!this.edges.isEmpty() && MWOE == null) {
             if (getNodeState() == NodeState.TEST) {
                 if (this.edges.isEmpty()) break;
@@ -613,7 +600,6 @@ public class Node {
 
     public void sendMerge() {
         if (this.nodeState == NodeState.TERMINATE) return;
-        // this.updateRound();
         initMergeState();
         Logger.Debug("Begin to merge, current MWOE is %s", this.MWOE);
         checkComponentLeader(NodeState.MERGE);
@@ -631,12 +617,6 @@ public class Node {
                 if (this.nodeState == NodeState.MERGE) {
                     sendMergeMsg("MERGE");
                     setNodeState(NodeState.IDLE);
-                    // String[] edge = this.getMWOE().toString().split(",");
-                    // int ep1 = Integer.parseInt(edge[0]);
-                    // int ep2 = Integer.parseInt(edge[1]);
-                    // if (ep1 != this.getComponentId() && ep2 != this.getComponentId()) {
-                    //     this.setNewComponentId(Math.max(ep1, ep2));
-                    // }
                 } else {
                     sendMergeMsg("EMPTY");
                 }
@@ -646,9 +626,6 @@ public class Node {
         }
         updateRound();
         int res = compare(this.MWOE, this.localMWOE);
-        // Logger.Debug("local MWOE is %s", this.localMWOE.toString());
-        // Logger.Debug("MWOR is %s", this.MWOE.toString());
-        // Logger.Debug("Resutl is %s", res);
         if (this.localMWOE != null && res != 0) {
             this.edges.add(this.localMWOE);
         }
@@ -686,7 +663,6 @@ public class Node {
         this.convergeMsgNo = 0;
         this.parent = null;
         this.nodeState = NodeState.IDLE;
-        // setNewComponentId(this.getComponentId());
         setNewComponentId(-1);
     }
 
@@ -703,12 +679,6 @@ public class Node {
 
     public void updateTree() {
         initNextComponentLevel();
-        //Logger.Debug("this new component is %s", this.getNewComponentId());
-        //Logger.Debug("this component is %s", this.getComponentId());
-        // if (this.getNewComponentId() != -1) {
-        //     this.setComponentId(this.getNewComponentId());
-        // }
-        //Logger.Debug("After merge this component is %s", this.getComponentId());
         for (Edge edge : newTreeEdges) {
             //Logger.Debug("Edge is %s", edge);
             treeEdges.add(edge);
