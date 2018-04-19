@@ -13,8 +13,10 @@ public class Node {
     private int port;
     private HashMap<Integer, Node> neighbors = new HashMap<>();
     private PriorityQueue<Edge> edges = new PriorityQueue<>();
+
     private MsgService msgService;
     private ConcurrentLinkedQueue<Msg> bufferedMsg = new ConcurrentLinkedQueue<>();
+
     private NodeState nodeState;
     private int round;
     private int searchRound;
@@ -23,6 +25,7 @@ public class Node {
     private int searchMsgNo;
     private int convergeMsgNo;
     private int mergeMsgNo;
+
     private int componentId;
     private Integer newComponentId;
     private boolean isLeader = true;;
@@ -50,14 +53,17 @@ public class Node {
         msgService = new MsgService(this);
         msgService.startServer();
         Logger.Info("Msg Service started......");
+
         int count = 5;
         while (count > 0) {
             Logger.Info("%d seconds to start.", count);
             Thread.sleep(1000);
             count--;
         }
+
         connectNeighbors();
         Logger.Info("Connected to All neighbors....");
+
         while (!msgService.isInChannelsReady()) {
             StringBuilder sb = new StringBuilder("Current InChannels: ");
             for (int id : msgService.channels.keySet()) {
@@ -100,11 +106,8 @@ public class Node {
                         for (Msg m : bufferedMsg) {
                             if (this.getComponentLevel() == m.getComponentLevel()
                                     && (m.getRound() <= getRound() || m.getRound() == -1)) {
-                                //Logger.Debug("This message is from buffer %s", m);
-                                //Logger.Debug("Remove BUFFER message is %s", m);
                                 processMsg(m);
                                 bufferedMsg.remove(m);
-                                //Logger.Debug("BUFFER size is %s", this.bufferedMsg.size());
                                 break;
                             }
                         }
@@ -154,7 +157,6 @@ public class Node {
                     updateChildrenMsgNo();
                     checkConverge();
                 }
-
                 updateConvergeMsgNo();
             } else if (msg.getAction().equals(MsgAction.MERGE)) {
                 String content = msg.getContent();
@@ -163,7 +165,6 @@ public class Node {
                     int srcId = msg.getSrcId();
                     processMergeMsg(fromId, srcId, content);
                 }
-
                 updateMergeMsgNo();
             } else if (msg.getAction().equals(MsgAction.JOIN)) {
                 int fromId = msg.getFromId();
@@ -309,6 +310,7 @@ public class Node {
     }
 
     public synchronized void updateTreeNeighbors(int id, Edge edge) {
+
         if (!newTreeNeighbors.containsKey(id)) {
             Node newTreeNeighbor = neighbors.get(id);
             newTreeNeighbors.put(id, newTreeNeighbor);
