@@ -20,17 +20,8 @@ public class SynchGHS {
                 tmp.append(nId + "  ");
             }
             Logger.Info("Connecting Node: %s", tmp);
-
             buildMST(node);
-
             Logger.Info("Finish");
-            //node.updateTree();
-            // PriorityQueue<Edge> pq = node.getEdges();
-            // while (!pq.isEmpty()) {
-            //     Edge edge = pq.poll();
-            //     Logger.Debug("Endpoint1: %s, Endpoint2: %s Weight: %s", edge.endpoint1, edge.endpoint2, edge.weight);
-            // }
-
             List<Edge> edgeList = node.getTreeEdges();
             for (Edge edge : edgeList) {
                 Logger.Info("Endpoint1: %s, Endpoint2: %s Weight: %s", edge.endpoint1, edge.endpoint2, edge.weight);
@@ -81,14 +72,12 @@ public class SynchGHS {
                         if (id1.equals(id2)) {
                             throw new Exception(String.format("Invalid edge Id: %s", readLine));
                         }
-
                         String nbIdStr = id1.equals(nodeId) ? id2 : id1;
                         String[] nbInfo = nodes.get(nbIdStr).split("\\s+");
                         int nId = Integer.parseInt(nbInfo[0]);
                         String nHost = nbInfo[1].trim();
                         int nPort = Integer.parseInt(nbInfo[2]);
                         int weight = Integer.parseInt(t[1].trim());
-
                         node.setN(nodeNum);
                         node.addNeighbor(nId, nHost, nPort, weight);
                     }
@@ -109,7 +98,6 @@ public class SynchGHS {
             Logger.Info("[Searching]Broadcasting search instruction.");
             node.searchMWOE();
             Logger.Info("[Searching] Broadcasting Completed.");
-
             Logger.Info("[Testing] Testing MWOE.");
             node.selectLocalMWOE();
             Logger.Info("[Testing] Finished.");
@@ -133,7 +121,6 @@ public class SynchGHS {
             sb.append(end);
             sb.append(" - (" + e.weight + ")");
         }
-
         Logger.Info("[RESULT] Tree Edges %s : {%s}", node.getId(), sb.toString());
     }
 }
