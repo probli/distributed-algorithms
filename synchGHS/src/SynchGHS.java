@@ -109,7 +109,6 @@ public class SynchGHS {
             Logger.Info("[Searching]Broadcasting search instruction.");
             node.searchMWOE();
             Logger.Info("[Searching] Broadcasting Completed.");
-
             Logger.Info("[Testing] Testing MWOE.");
             node.selectLocalMWOE();
             Logger.Info("[Testing] Finished.");
