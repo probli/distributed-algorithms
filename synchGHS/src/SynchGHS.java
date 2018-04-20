@@ -21,11 +21,11 @@ public class SynchGHS {
             }
             Logger.Info("Connecting Node: %s", tmp);
             buildMST(node);
-            Logger.Info("Finish");
-            List<Edge> edgeList = node.getTreeEdges();
-            for (Edge edge : edgeList) {
-                Logger.Info("Endpoint1: %s, Endpoint2: %s Weight: %s", edge.endpoint1, edge.endpoint2, edge.weight);
-            }
+            // Logger.Info("Finish");
+            // List<Edge> edgeList = node.getTreeEdges();
+            // for (Edge edge : edgeList) {
+            //     Logger.Info("Endpoint1: %s, Endpoint2: %s Weight: %s", edge.endpoint1, edge.endpoint2, edge.weight);
+            // }
         } catch (Exception e) {
             StringWriter sw = new StringWriter();
             PrintWriter pw = new PrintWriter(sw);
@@ -95,19 +95,23 @@ public class SynchGHS {
         node.initBuildMST();
 
         while (node.getNodeState() != NodeState.TERMINATE) {
-            Logger.Info("[Searching]Broadcasting search instruction.");
+            // Logger.Info("[Searching]Broadcasting search instruction.");
             node.searchMWOE();
-            Logger.Info("[Searching] Broadcasting Completed.");
-            Logger.Info("[Testing] Testing MWOE.");
+            // Logger.Info("[Searching] Broadcasting Completed.");
+            // Logger.Info("[Testing] Testing MWOE.");
+            
+            
             node.selectLocalMWOE();
-            Logger.Info("[Testing] Finished.");
+            // Logger.Info("[Testing] Finished.");
 
-            Logger.Info("[Converging] Start Converging MWOE.");
+            // Logger.Info("[Converging] Start Converging MWOE.");
             node.convergeLocalMWOE();
-            Logger.Info("[Converging] Converging Completed.");
+            // Logger.Info("[Converging] Converging Completed.");
 
             node.sendMerge();
             node.mergeMWOE();
+            // Logger.Info("************Round: %s", node.getRound());
+            // node.setNodeState(NodeState.TERMINATE);
         }
         Logger.Info("MST Created!");
         Logger.Info("[RESULT] Final component ID is %s", node.getComponentId());

@@ -19,12 +19,7 @@ public class Node {
 
     private NodeState nodeState;
     private int round;
-    private int searchRound;
-    private int convergeRound;
-    private int mergeRound;
-    private int searchMsgNo;
-    private int convergeMsgNo;
-    private int mergeMsgNo;
+    private int processedMsgNo;
 
     private int componentId;
     private Integer newComponentId;
@@ -105,11 +100,11 @@ public class Node {
                     synchronized (bufferedMsg) {
                         for (Msg m : bufferedMsg) {
                             if (this.getComponentLevel() == m.getComponentLevel()
-                                    && (m.getRound() <= getRound() || m.getRound() == -1)) {
-                                processMsg(m);
-                                bufferedMsg.remove(m);
-                                break;
-                            }
+                                && (this.round == m.getRound() || m.getRound() == -1)) {
+                                    processMsg(m);
+                                    bufferedMsg.remove(m);
+                                    break;
+                                }
                         }
                     }
                 }
@@ -126,12 +121,16 @@ public class Node {
 
     private void processMsg(Msg msg) {
         try {
-            if (msg.getComponentLevel() > this.getComponentLevel()
-                    || (msg.getRound() > this.getRound() && msg.getRound() != -1)) {
+            if (msg.getComponentLevel() > this.getComponentLevel()) {
+                addMsgToBuffer(msg);
+                return;
+            }
+            if (msg.getRound() != this.round && msg.getRound() != -1) {
                 addMsgToBuffer(msg);
                 return;
             }
 
+            Logger.Debug("Processing messege: %s", msg.toString());
             if (msg.getAction().equals(MsgAction.DISCONNECT)) {
                 msgService.disconnect(msg.getFromId());
             } else if (msg.getAction().equals(MsgAction.SEARCH)) {
@@ -141,8 +140,7 @@ public class Node {
                     int srcId = msg.getSrcId();
                     processSearchMsg(fromId, srcId);
                 }
-
-                updateSearchMsgNo();
+                updateProcessedMsgNo();
             } else if (msg.getAction().equals(MsgAction.TEST)) {
                 int fromId = msg.getFromId();
                 int receivedId = Integer.parseInt(msg.getContent());
@@ -157,7 +155,7 @@ public class Node {
                     updateChildrenMsgNo();
                     checkConverge();
                 }
-                updateConvergeMsgNo();
+                updateProcessedMsgNo();
             } else if (msg.getAction().equals(MsgAction.MERGE)) {
                 String content = msg.getContent();
                 if (!content.equals("EMPTY")) {
@@ -165,7 +163,7 @@ public class Node {
                     int srcId = msg.getSrcId();
                     processMergeMsg(fromId, srcId, content);
                 }
-                updateMergeMsgNo();
+                updateProcessedMsgNo();
             } else if (msg.getAction().equals(MsgAction.JOIN)) {
                 int fromId = msg.getFromId();
                 String content = msg.getContent();
@@ -197,28 +195,13 @@ public class Node {
         }
     }
 
-    private synchronized void updateSearchMsgNo() {
-        this.searchMsgNo = this.searchMsgNo + 1;
+    private synchronized void updateProcessedMsgNo() {
+        this.processedMsgNo = this.processedMsgNo + 1;
+        Logger.Debug("ProcessedMsgNo: %s", processedMsgNo);
     }
 
-    private synchronized void updateConvergeMsgNo() {
-        this.convergeMsgNo = this.convergeMsgNo + 1;
-    }
-
-    private synchronized void updateMergeMsgNo() {
-        this.mergeMsgNo = this.mergeMsgNo + 1;
-    }
-
-    private synchronized int getSearchMsgNo() {
-        return this.searchMsgNo;
-    }
-
-    private synchronized int getConvergedMsgNo() {
-        return this.convergeMsgNo;
-    }
-
-    private synchronized int getMergeMsgNo() {
-        return this.mergeMsgNo;
+    private synchronized int getProcessedMsgNo() {
+        return this.processedMsgNo;
     }
 
     private synchronized void updateChildrenMsgNo() {
@@ -310,13 +293,11 @@ public class Node {
     }
 
     public synchronized void updateTreeNeighbors(int id, Edge edge) {
-
         if (!newTreeNeighbors.containsKey(id)) {
             Node newTreeNeighbor = neighbors.get(id);
             newTreeNeighbors.put(id, newTreeNeighbor);
             newTreeEdges.add(edge);
         }
-
     }
 
     private synchronized void transferToChildren(Msg msg) {
@@ -363,44 +344,13 @@ public class Node {
         this.edges.offer(new Edge(this.id, id, weight));
     }
 
-    public synchronized int getRound() {
+    public int getRound() {
         return round;
     }
 
-    public synchronized int getSearchRound() {
-        return searchRound;
-    }
-
-    public synchronized int getConvergeRound() {
-        return convergeRound;
-    }
-
-    public synchronized int getMergeRound() {
-        return mergeRound;
-    }
-
-    public synchronized void updateRound() {
+    public void updateRound() {
         this.round = this.round + 1;
-        Logger.Debug("Current round is %s", this.round);
-    }
-
-    public synchronized void updateSearchRound() {
-        this.searchRound = this.searchRound + 1;
-        Logger.Debug("Current search round is %s", this.searchRound);
-    }
-
-    public synchronized void updateConvergeRound() {
-        this.convergeRound = this.convergeRound + 1;
-        Logger.Debug("Current converge round is %s", this.convergeRound);
-    }
-
-    public synchronized void updateMergeRound() {
-        this.mergeRound = this.mergeRound + 1;
-        Logger.Debug("Current merge round is %s", this.mergeRound);
-    }
-
-    public void setRound(int r) {
-        this.round = r;
+        Logger.Debug("Current round is %s, state: %s", this.round, this.getNodeState());
     }
 
     public synchronized NodeState getNodeState() {
@@ -408,7 +358,9 @@ public class Node {
     }
 
     public synchronized void setNodeState(NodeState s) {
-        Logger.Info("Round %s : %s ----> %s", getRound(), this.nodeState, s);
+        if (s == NodeState.TERMINATE) {
+            Logger.Info("Round %s : %s ----> %s", getRound(), this.nodeState, s);
+        }
         this.nodeState = s;
     }
 
@@ -480,24 +432,20 @@ public class Node {
         this.nodeState = NodeState.IDLE;
         this.componentLevel = 0;
         this.round = 0;
-        this.searchRound = 0;
-        this.convergeRound = 0;
-        this.mergeRound = 0;
-        this.searchMsgNo = 0;
-        this.convergeMsgNo = 0;
-        this.mergeMsgNo = 0;
         this.MWOE = null;
         this.parent = null;
         this.hasGlobalMWOE = false;
     }
 
     public void searchMWOE() {
+        this.processedMsgNo = 0;
         if (this.nodeState == NodeState.TERMINATE) return;
         this.totalJoinMsg = this.neighbors.size() - this.treeNeighbors.size();
         checkComponentLeader(NodeState.SEARCH);
         int roundMsgNumber = this.treeEdges.size();
-        while (this.getSearchRound() < N || (this.getSearchMsgNo() < roundMsgNumber * N)) {
-            if (this.getSearchRound() < N && (this.getSearchMsgNo() == roundMsgNumber * this.getSearchRound())) {
+
+        while (this.round < N) {
+            if (this.getProcessedMsgNo() == roundMsgNumber * this.getRound()) {
                 if (this.nodeState == NodeState.SEARCH) {
                     sendSearchMsg("SEARCH");
                     setNodeState(NodeState.IDLE);
@@ -505,10 +453,9 @@ public class Node {
                     sendSearchMsg("EMPTY");
                 }
                 updateRound();
-                updateSearchRound();
+                // updateSearchRound();
             }
         }
-        updateRound();
     }
 
     public void initNextComponentLevel() {
@@ -542,8 +489,6 @@ public class Node {
     }
 
     public void initTestState() {
-        this.searchRound = 0;
-        this.searchMsgNo = 0;
         this.nodeState = NodeState.TEST;
     }
 
@@ -552,8 +497,10 @@ public class Node {
         initConvergeState();
         checkConverge();
         int roundMsgNumber = this.treeNeighbors.size() + (componentId == id ? 0 : -1);
-        while (this.getConvergeRound() < N || (this.getConvergedMsgNo() < N * roundMsgNumber)) {
-            if (this.getConvergeRound() < N && (this.getConvergedMsgNo() == this.getConvergeRound() * roundMsgNumber)) {
+        int prevMsg = this.treeEdges.size() * N;
+
+        while (this.round < N * 2) {
+            if (this.getProcessedMsgNo() == prevMsg + roundMsgNumber * (this.round - N)) {
                 if (this.nodeState == NodeState.CONVERGE) {
                     sendConvergeMsg("CONVERGE");
                     setNodeState(NodeState.IDLE);
@@ -561,10 +508,8 @@ public class Node {
                     sendConvergeMsg("EMPTY");
                 }
                 updateRound();
-                updateConvergeRound();
             }
         }
-        updateRound();
     }
 
     public void initConvergeState() {
@@ -593,11 +538,13 @@ public class Node {
             return;
         }
         int roundMsgNumber = this.treeEdges.size();
-        while (this.getMergeRound() < N || (this.getMergeMsgNo() < roundMsgNumber * N)) {
+        int prevMsg = (this.treeEdges.size() + this.treeNeighbors.size() + (componentId == id ? 0 : -1)) * N;
+
+        while (this.round < N * 3) {
             if (this.nodeState == NodeState.TERMINATE) {
                 break;
             }
-            if (this.getMergeRound() < N && (this.getMergeMsgNo() == roundMsgNumber * this.getMergeRound())) {
+            if (this.getProcessedMsgNo() == prevMsg + roundMsgNumber * (round - N * 2)) {
                 if (this.nodeState == NodeState.MERGE) {
                     sendMergeMsg("MERGE");
                     setNodeState(NodeState.IDLE);
@@ -605,15 +552,13 @@ public class Node {
                     sendMergeMsg("EMPTY");
                 }
                 updateRound();
-                updateMergeRound();
             }
         }
-        updateRound();
+
         int res = compare(this.MWOE, this.localMWOE);
         if (this.localMWOE != null && res != 0) {
             this.edges.add(this.localMWOE);
         }
-        
     }
 
     public void mergeMWOE() {
@@ -636,8 +581,6 @@ public class Node {
     }
 
     public void initMergeState() {
-        this.convergeRound = 0;
-        this.convergeMsgNo = 0;
         this.parent = null;
         this.nodeState = NodeState.IDLE;
         setNewComponentId(-1);
@@ -734,8 +677,6 @@ public class Node {
 
     private void sendJoinMsg() {
         Msg join;
-        this.mergeRound = 0;
-        this.mergeMsgNo = 0;
         for (int toId : neighbors.keySet()) {
             if (treeNeighbors.containsKey(toId))
                 continue;
