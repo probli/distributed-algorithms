@@ -92,7 +92,7 @@ public class MsgFactory {
         msg.setSrcId(node.getComponentId());
         msg.setFromId(localNodeId);
         msg.setToId(toId);
-        msg.setRound(node.getRound());
+        msg.setRound(node.getRound() + 1);
         msg.setComponentLevel(node.getComponentLevel());
         return msg;
     }
@@ -102,7 +102,7 @@ public class MsgFactory {
         msg.setAction(MsgAction.TERMINATE);
         msg.setSrcId(node.getComponentId());
         msg.setFromId(node.getId());
-        msg.setRound(-1);
+        msg.setRound(node.getRound() + 1);
         msg.setComponentLevel(node.getComponentLevel());
         return msg;
     }
