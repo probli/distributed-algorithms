@@ -20,12 +20,8 @@ public class SynchGHS {
                 tmp.append(nId + "  ");
             }
             Logger.Info("Connecting Node: %s", tmp);
+            testMode(node);
             buildMST(node);
-            // Logger.Info("Finish");
-            // List<Edge> edgeList = node.getTreeEdges();
-            // for (Edge edge : edgeList) {
-            //     Logger.Info("Endpoint1: %s, Endpoint2: %s Weight: %s", edge.endpoint1, edge.endpoint2, edge.weight);
-            // }
         } catch (Exception e) {
             StringWriter sw = new StringWriter();
             PrintWriter pw = new PrintWriter(sw);
@@ -95,27 +91,57 @@ public class SynchGHS {
         node.initBuildMST();
 
         while (node.getNodeState() != NodeState.TERMINATE) {
-            // Logger.Info("[Searching]Broadcasting search instruction.");
+            node.updateComponentLevel();
             node.searchMWOE();
-            // Logger.Info("[Searching] Broadcasting Completed.");
-            // Logger.Info("[Testing] Testing MWOE.");
-            
-            
             node.selectLocalMWOE();
-            // Logger.Info("[Testing] Finished.");
-
-            // Logger.Info("[Converging] Start Converging MWOE.");
             node.convergeLocalMWOE();
-            // Logger.Info("[Converging] Converging Completed.");
-
             node.sendMerge();
+            if (node.getNodeState() == NodeState.TERMINATE) break;
             node.mergeMWOE();
-            // Logger.Info("************Round: %s", node.getRound());
-            // node.setNodeState(NodeState.TERMINATE);
         }
+
         Logger.Info("MST Created!");
         Logger.Info("[RESULT] Final component ID is %s", node.getComponentId());
+        printInfo(node);
+    }
 
+        public static void testMode(Node node) {
+        Logger.Info("Send Msg or Press [d/D] to disconnect by NodeId.");
+
+        Runnable task = ()->{
+            try {
+                while (true) {
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+                    String msg = reader.readLine();
+                    if (msg == null || msg.isEmpty()) {
+                        continue;
+                    }
+                    if (msg.equalsIgnoreCase("D")) {
+                        Logger.Info("Input nodeId:");
+                        String ss = reader.readLine();
+                        if (ss == null || ss.isEmpty()) continue;
+                        node.disconnect(Integer.parseInt(ss));
+                    } else if (msg.equalsIgnoreCase("BUFFER")){
+                        node.printMsgInBuffer();
+                    } else if (msg.equalsIgnoreCase("INFO")){
+                        Logger.Info("MsfNo: %s, R: %s, CLevel:  %s", node.getProcessedMsgNo(), node.getRound(), node.getComponentLevel());
+                    } else if (msg.equalsIgnoreCase("RESULT")){
+                        printInfo(node);
+                    } else {
+                        Logger.Info("Not Supported");
+                    }
+                }
+            } catch(Exception e) {
+                StringWriter sw = new StringWriter();
+                PrintWriter pw = new PrintWriter(sw);
+                e.printStackTrace(pw);
+                Logger.Error(sw.toString());
+            }
+        };
+        new Thread(task).start();
+    }
+
+    private static void printInfo(Node node) {
         StringBuilder sb = new StringBuilder();
         for (Edge e: node.getTreeEdges()) {
             if(sb.length() != 0) {

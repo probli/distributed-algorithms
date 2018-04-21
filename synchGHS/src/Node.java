@@ -3,7 +3,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 enum NodeState {
-    IDLE, SEARCH, TEST, CONVERGE, MERGE, JOIN, TERMINATE
+    STARTPHASE, IDLE, SEARCH, TEST, CONVERGE, MERGE, JOIN, ENDPHASE, TERMINATE
 }
 
 public class Node {
@@ -23,16 +23,15 @@ public class Node {
 
     private int componentId;
     private Integer newComponentId;
-    private boolean isLeader = true;;
+    private boolean isLeader;
     private List<Edge> treeEdges = new LinkedList<>();
     private HashMap<Integer, Node> treeNeighbors = new HashMap<>();
     private List<Edge> newTreeEdges = new LinkedList<>();
     private HashMap<Integer, Node> newTreeNeighbors = new HashMap<>();
-    private int totalJoinMsg;
     private Edge MWOE;
     private Edge localMWOE;
     private int childrenMsgNo;
-    private int joinMsgNo = 0;
+    private int joinMsgNo;
     private int componentLevel;
     private Node parent;
     private boolean hasGlobalMWOE;
@@ -67,7 +66,7 @@ public class Node {
                     sb.append(id + ", ");
                 }
             }
-            Logger.Info(sb.toString());
+            // Logger.Info(sb.toString());
             Thread.sleep(1000);
         }
         checkBuffer();
@@ -140,7 +139,7 @@ public class Node {
                     int srcId = msg.getSrcId();
                     processSearchMsg(fromId, srcId);
                 }
-                updateProcessedMsgNo();
+                updateProcessedMsgNo(msg);
             } else if (msg.getAction().equals(MsgAction.TEST)) {
                 int fromId = msg.getFromId();
                 int receivedId = Integer.parseInt(msg.getContent());
@@ -155,7 +154,7 @@ public class Node {
                     updateChildrenMsgNo();
                     checkConverge();
                 }
-                updateProcessedMsgNo();
+                updateProcessedMsgNo(msg);
             } else if (msg.getAction().equals(MsgAction.MERGE)) {
                 String content = msg.getContent();
                 if (!content.equals("EMPTY")) {
@@ -163,17 +162,20 @@ public class Node {
                     int srcId = msg.getSrcId();
                     processMergeMsg(fromId, srcId, content);
                 }
-                updateProcessedMsgNo();
+                updateProcessedMsgNo(msg);
             } else if (msg.getAction().equals(MsgAction.JOIN)) {
+                Logger.Info("Processing Msg: %s", msg.toString());
                 int fromId = msg.getFromId();
                 String content = msg.getContent();
-                processJoinMsg(fromId, content);
-            } else if (msg.getAction().equals(MsgAction.TERMINATE)) {
-                if (this.nodeState == NodeState.TERMINATE) {
-                    return;
+                if (!content.equals("EMPTY")) {
+                    processJoinMsg(fromId, content);
                 }
-                transferToChildren(msg);
-                setNodeState(NodeState.TERMINATE);
+                updateJoinMsgNo();
+            } else if (msg.getAction().equals(MsgAction.TERMINATE)) {
+                int fromId = msg.getFromId();
+                int srcId = msg.getSrcId();
+                processTerminateMsg(fromId, srcId);
+                updateProcessedMsgNo(msg);
             } else {
                 Logger.Debug(String.format("[!!!!Lost!!!!] %s, STATE: %s", msg.printFormat(), getNodeState()));
             }
@@ -189,18 +191,17 @@ public class Node {
         if (parent == null && srcId != id) {
             setParent(fromId);
             setComponentId(srcId);
-            Logger.Debug("This Component level is: %s", this.getComponentLevel());
-            Logger.Debug("COMPONENT ID IS %s", this.getComponentId());
+            Logger.Debug("### Current component level is: %s, componetn ID is %s", this.getComponentLevel(), this.getComponentId());
             setNodeState(NodeState.SEARCH);
         }
     }
 
-    private synchronized void updateProcessedMsgNo() {
+    private synchronized void updateProcessedMsgNo(Msg msg) {
         this.processedMsgNo = this.processedMsgNo + 1;
-        Logger.Debug("ProcessedMsgNo: %s", processedMsgNo);
+        Logger.Info("Processed Msg No: %s, Processing Msg: %s", processedMsgNo, msg.toString());
     }
 
-    private synchronized int getProcessedMsgNo() {
+    public synchronized int getProcessedMsgNo() {
         return this.processedMsgNo;
     }
 
@@ -210,7 +211,7 @@ public class Node {
 
     private synchronized void updateJoinMsgNo() {
         this.joinMsgNo = this.joinMsgNo + 1;
-        Logger.Debug("Join message is %s", this.joinMsgNo);
+        checkReceivedJoinMsgNo();
     }
 
     private synchronized int getJoinMsgNo() {
@@ -248,7 +249,7 @@ public class Node {
             mwoe = new Edge(ep1, ep2, weight);
         }
         int res = compare(MWOE, mwoe);
-    
+
         if (res > 0) {
             setMWOE(mwoe);
         }
@@ -270,14 +271,14 @@ public class Node {
         }
     }
 
+    private synchronized void processTerminateMsg(int fromId, int srcId) {
+        if (parent == null && srcId != id) {
+            setParent(fromId);
+            setNodeState(NodeState.TERMINATE);
+        }
+    }
+
     private synchronized void processJoinMsg(int fromId, String content) {
-        updateJoinMsgNo();
-        if (this.joinMsgNo == 2 * this.totalJoinMsg) {
-            setNodeState(NodeState.IDLE);
-        }
-        if (content.equals("EMPTY")) {
-            return;
-        }
         String[] edge = content.split(",");
         int ep1 = Integer.parseInt(edge[0]);
         int ep2 = Integer.parseInt(edge[1]);
@@ -292,6 +293,12 @@ public class Node {
         }
     }
 
+    private synchronized void checkReceivedJoinMsgNo() {
+        if (this.joinMsgNo == this.neighbors.size() - this.treeNeighbors.size()) {
+            setNodeState(NodeState.ENDPHASE);
+        }
+    }
+
     public synchronized void updateTreeNeighbors(int id, Edge edge) {
         if (!newTreeNeighbors.containsKey(id)) {
             Node newTreeNeighbor = neighbors.get(id);
@@ -300,18 +307,9 @@ public class Node {
         }
     }
 
-    private synchronized void transferToChildren(Msg msg) {
-        for (Node node : treeNeighbors.values()) {
-            if (msg.getFromId() != node.getId()) {
-                msg.setToId(node.getId());
-                msgService.sendMsg(msg);
-            }
-        }
-    }
-
     public int compare(Edge e1, Edge e2) {
-        if (e1 == null)
-            return 1;
+        if (e1 == null) return 1;
+
         return e1.compareTo(e2);
     }
 
@@ -350,7 +348,6 @@ public class Node {
 
     public void updateRound() {
         this.round = this.round + 1;
-        Logger.Debug("Current round is %s, state: %s", this.round, this.getNodeState());
     }
 
     public synchronized NodeState getNodeState() {
@@ -358,9 +355,7 @@ public class Node {
     }
 
     public synchronized void setNodeState(NodeState s) {
-        if (s == NodeState.TERMINATE) {
-            Logger.Info("Round %s : %s ----> %s", getRound(), this.nodeState, s);
-        }
+        Logger.Info("Round %s : %s ----> %s", getRound(), this.nodeState, s);
         this.nodeState = s;
     }
 
@@ -384,11 +379,7 @@ public class Node {
         return this.componentLevel;
     }
 
-    public synchronized void setComponentLevel(int cl) {
-        this.componentLevel = cl;
-    }
-
-    public synchronized void updateComponentLevel() {
+    public void updateComponentLevel() {
         Logger.Debug("[Component Level] %s --> %s", this.componentLevel, this.componentLevel + 1);
         this.componentLevel = this.componentLevel + 1;
     }
@@ -429,21 +420,15 @@ public class Node {
 
     public void initBuildMST() {
         this.componentId = this.id;
-        this.nodeState = NodeState.IDLE;
         this.componentLevel = 0;
-        this.round = 0;
-        this.MWOE = null;
-        this.parent = null;
-        this.hasGlobalMWOE = false;
+        this.isLeader = true;
     }
 
     public void searchMWOE() {
-        this.processedMsgNo = 0;
-        if (this.nodeState == NodeState.TERMINATE) return;
-        this.totalJoinMsg = this.neighbors.size() - this.treeNeighbors.size();
+        initSearchState();
         checkComponentLeader(NodeState.SEARCH);
-        int roundMsgNumber = this.treeEdges.size();
 
+        int roundMsgNumber = this.treeEdges.size();
         while (this.round < N) {
             if (this.getProcessedMsgNo() == roundMsgNumber * this.getRound()) {
                 if (this.nodeState == NodeState.SEARCH) {
@@ -453,20 +438,19 @@ public class Node {
                     sendSearchMsg("EMPTY");
                 }
                 updateRound();
-                // updateSearchRound();
             }
         }
     }
 
-    public void initNextComponentLevel() {
-        this.joinMsgNo = 0;
+    public void initSearchState() {
         this.round = 0;
         this.parent = null;
-        this.nodeState = NodeState.IDLE;
+        this.setNodeState(NodeState.STARTPHASE);
         this.hasGlobalMWOE = false;
         this.MWOE = null;
         this.localMWOE = null;
-        this.childrenMsgNo = 0;
+        this.processedMsgNo = 0;
+        this.joinMsgNo = 0;
     }
 
     public void checkComponentLeader(NodeState ns) {
@@ -478,6 +462,7 @@ public class Node {
     public void selectLocalMWOE() {
         if (this.nodeState == NodeState.TERMINATE) return;
         initTestState();
+
         while (!this.edges.isEmpty() && MWOE == null) {
             if (getNodeState() == NodeState.TEST) {
                 if (this.edges.isEmpty()) break;
@@ -489,16 +474,15 @@ public class Node {
     }
 
     public void initTestState() {
-        this.nodeState = NodeState.TEST;
+        this.setNodeState(NodeState.TEST);
     }
 
     public void convergeLocalMWOE() {
-        if (this.nodeState == NodeState.TERMINATE)
         initConvergeState();
         checkConverge();
+
         int roundMsgNumber = this.treeNeighbors.size() + (componentId == id ? 0 : -1);
         int prevMsg = this.treeEdges.size() * N;
-
         while (this.round < N * 2) {
             if (this.getProcessedMsgNo() == prevMsg + roundMsgNumber * (this.round - N)) {
                 if (this.nodeState == NodeState.CONVERGE) {
@@ -513,39 +497,30 @@ public class Node {
     }
 
     public void initConvergeState() {
-        this.nodeState = NodeState.IDLE;
+        this.childrenMsgNo = 0;
     }
 
     public void checkConverge() {
         int requiredMsg = this.treeNeighbors.size() + (this.getComponentId() == this.id ? 0 : -1);
-        Logger.Debug("Current required Msg is %s", requiredMsg);
-        Logger.Debug("Current childrenMsgNo Msg is %s", this.childrenMsgNo);
-        Logger.Debug("Current tree neighbors size is %s", this.treeNeighbors.size());
         if (this.childrenMsgNo == requiredMsg) {
             setNodeState(NodeState.CONVERGE);
         }
-        Logger.Debug("Current state is %s", this.getNodeState());
     }
 
     public void sendMerge() {
-        if (this.nodeState == NodeState.TERMINATE) return;
         initMergeState();
-        Logger.Debug("Begin to merge, current MWOE is %s", this.MWOE);
         checkComponentLeader(NodeState.MERGE);
         if (checkTermination()) {
             setNodeState(NodeState.TERMINATE);
-            sendTerminationMsg();
-            return;
         }
+
         int roundMsgNumber = this.treeEdges.size();
         int prevMsg = (this.treeEdges.size() + this.treeNeighbors.size() + (componentId == id ? 0 : -1)) * N;
-
         while (this.round < N * 3) {
-            if (this.nodeState == NodeState.TERMINATE) {
-                break;
-            }
             if (this.getProcessedMsgNo() == prevMsg + roundMsgNumber * (round - N * 2)) {
-                if (this.nodeState == NodeState.MERGE) {
+                if (this.nodeState == NodeState.TERMINATE) {
+                    sendTerminationMsg();
+                } else if (this.nodeState == NodeState.MERGE) {
                     sendMergeMsg("MERGE");
                     setNodeState(NodeState.IDLE);
                 } else {
@@ -554,35 +529,10 @@ public class Node {
                 updateRound();
             }
         }
-
-        int res = compare(this.MWOE, this.localMWOE);
-        if (this.localMWOE != null && res != 0) {
-            this.edges.add(this.localMWOE);
-        }
-    }
-
-    public void mergeMWOE() {
-        if (this.nodeState == NodeState.TERMINATE) {
-            return;
-        }
-        this.isLeader = false;
-        setNodeState(NodeState.JOIN);
-        sendJoinMsg();
-        while (getNodeState() != NodeState.TERMINATE) {
-            if (getNodeState() == NodeState.TERMINATE) {
-                return;
-            }
-            if (getNodeState() != NodeState.JOIN) {
-                break;
-            }
-        }
-        updateTree();
-        updateComponentLevel();
     }
 
     public void initMergeState() {
         this.parent = null;
-        this.nodeState = NodeState.IDLE;
         setNewComponentId(-1);
     }
 
@@ -597,8 +547,38 @@ public class Node {
         return false;
     }
 
+    public void mergeMWOE() {
+        initJoinState();
+        updateEdges();
+
+        int roundMsgNumber = this.neighbors.size() - this.treeNeighbors.size();
+        while (getNodeState() != NodeState.ENDPHASE) {
+            if (this.processedMsgNo == (this.treeEdges.size() * 2 + this.treeNeighbors.size() + (componentId == id ? 0 : -1)) * N
+                && this.getJoinMsgNo() == (this.round - N * 3) * roundMsgNumber) {
+                if (roundMsgNumber == 0) setNodeState(NodeState.ENDPHASE);
+                if (getNodeState() != NodeState.ENDPHASE) {
+                    sendJoinMsg();
+                }
+                updateRound();
+            }
+        }
+
+        updateTree();
+    }
+
+    private void initJoinState() {
+        this.setNodeState(NodeState.JOIN);
+        this.isLeader = false;
+    }
+
+    private void updateEdges() {
+        int res = compare(this.MWOE, this.localMWOE);
+        if (this.localMWOE != null && res != 0) {
+            this.edges.add(this.localMWOE);
+        }
+    }
+
     public void updateTree() {
-        initNextComponentLevel();
         for (Edge edge : newTreeEdges) {
             treeEdges.add(edge);
         }
@@ -609,19 +589,15 @@ public class Node {
         }
         this.newTreeEdges = new LinkedList<>();
         this.newTreeNeighbors = new HashMap<>();
-        Logger.Info("Before change, Current Component ID is %s", this.getComponentId());
         if (this.getId() == getNewComponentId()) {
             this.isLeader = true;
             setComponentId(this.getNewComponentId());
         } else {
             setComponentId(-1);
         }
-        for (Edge e: this.edges) {
-            Logger.Debug("Current edge in queue is: %s", e.toString());
-        }
-        Logger.Debug("Current is Leader value is %s", this.isLeader);
+
         Logger.Info("Component level %s complete", this.getComponentLevel());
-        Logger.Info("Current Component ID is %s", this.getComponentId());
+        Logger.Info("Current is Leader value is %s", this.isLeader);
     }
 
     private synchronized void sendSearchMsg(String content) {
@@ -687,10 +663,14 @@ public class Node {
                 join = MsgFactory.joinMsg(this, toId, "EMPTY");
             }
             msgService.sendMsg(join);
-            updateJoinMsgNo();
         }
-        if (this.getJoinMsgNo() == 2 * this.totalJoinMsg) {
-            setNodeState(NodeState.IDLE);
+    }
+
+    public void printMsgInBuffer() {
+        synchronized (bufferedMsg) {
+            for (Msg m : bufferedMsg) {
+                Logger.Info("Buffered Msg: %s", m.toString());
+            }
         }
     }
 }
